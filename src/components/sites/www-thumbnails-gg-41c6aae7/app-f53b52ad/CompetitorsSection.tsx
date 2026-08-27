@@ -391,7 +391,7 @@ export function CompetitorsSection() {
           }}
         >
           Add channel
-          <span style={{ color: "var(--text-faint)" }}>@handle or URL</span>
+          <span style={{ color: "var(--text-faint)" }}>handle, channel or video link</span>
         </span>
         <div style={{ display: "flex", gap: 8 }}>
           <input

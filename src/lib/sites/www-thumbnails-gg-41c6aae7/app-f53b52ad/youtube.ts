@@ -35,6 +35,35 @@ export interface ChannelResult {
   error?: string;
 }
 
+/**
+ * Pulls the video id out of a watch / youtu.be / shorts / embed link.
+ * Returns null for anything that is not a single-video URL.
+ */
+export function toVideoId(input: string): string | null {
+  let s = input.trim();
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^www\./, "");
+  const ok = (id: string | null | undefined) =>
+    id && /^[\w-]{11}$/.test(id) ? id : null;
+
+  if (host === "youtu.be") return ok(u.pathname.split("/").filter(Boolean)[0]);
+  if (host !== "youtube.com" && host !== "m.youtube.com") return null;
+
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (parts[0] === "watch") return ok(u.searchParams.get("v"));
+  if (parts[0] === "shorts" || parts[0] === "embed" || parts[0] === "live") {
+    return ok(parts[1]);
+  }
+  return null;
+}
+
 /** Accepts @handle, /channel/UC…, /c/name, /user/name, or a bare handle. */
 export function toChannelVideosUrl(input: string): string | null {
   let s = input.trim();
@@ -63,6 +92,34 @@ export function toChannelVideosUrl(input: string): string | null {
   }
   if ((parts[0] === "c" || parts[0] === "user") && parts[1]) {
     return `https://www.youtube.com/${parts[0]}/${parts[1]}/videos`;
+  }
+  return null;
+}
+
+/**
+ * Resolves whatever the user pasted to a channel /videos URL, following a
+ * single-video link back to its uploader when necessary.
+ */
+async function resolveChannelVideosUrl(input: string): Promise<string | null> {
+  const direct = toChannelVideosUrl(input);
+  if (direct) return direct;
+
+  const videoId = toVideoId(input);
+  if (!videoId) return null;
+
+  try {
+    const { status, body } = await fetchText(
+      `https://www.youtube.com/watch?v=${videoId}`,
+    );
+    if (status !== 200) return null;
+    const handle = /"canonicalBaseUrl":"\/(@[^"/]+)"/.exec(body);
+    if (handle) return `https://www.youtube.com/${handle[1]}/videos`;
+    const channelId = /"channelId":"(UC[\w-]{20,})"/.exec(body);
+    if (channelId) {
+      return `https://www.youtube.com/channel/${channelId[1]}/videos`;
+    }
+  } catch {
+    return null;
   }
   return null;
 }
@@ -242,7 +299,7 @@ export interface ChannelIdentity {
 export async function fetchChannelIdentity(
   input: string,
 ): Promise<ChannelIdentity> {
-  const target = toChannelVideosUrl(input);
+  const target = await resolveChannelVideosUrl(input);
   if (!target) {
     return { ok: false, error: "Not a YouTube channel handle or URL." };
   }
@@ -281,12 +338,13 @@ export async function fetchChannelTopVideos(
   input: string,
   { pages = 2, take = 24 }: FetchOptions = {},
 ): Promise<ChannelResult> {
-  const target = toChannelVideosUrl(input);
+  const target = await resolveChannelVideosUrl(input);
   if (!target) {
     return {
       url: input,
       ok: false,
-      error: "Not a YouTube channel URL. Use a @handle or a /channel/UC… link.",
+      error:
+        "Not a YouTube channel. Paste a @handle, a channel URL, or any video link from that channel.",
     };
   }
 

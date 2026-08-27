@@ -25,8 +25,10 @@ A new **COMPETITORS** accordion in the editor sidebar, between *Details* and *Pl
 - **Feed** — a `Random` / `Competitors` segmented control. Random is the default and the
   original behaviour is untouched.
 - **Add channel** — accepts a `@handle`, a full channel URL (`/@handle`, `/channel/UC…`,
-  `/c/name`, `/user/name`), a bare `UC…` id, or several at once separated by spaces or
-  commas. Enter submits.
+  `/c/name`, `/user/name`), a bare `UC…` id, **or any video link from that channel**
+  (`watch?v=`, `youtu.be/`, `/shorts/`, `/embed/`, `/live/`), which is resolved back to
+  its uploader. Several can be pasted at once, separated by spaces or commas. Enter
+  submits.
 - **Channel rows** — each shows the resolved channel avatar and name, its subscriber
   count, how many videos were kept and out of how many sampled, plus a checkbox to
   include/exclude it from the feed and an × to remove it. Errors render inline in red.
