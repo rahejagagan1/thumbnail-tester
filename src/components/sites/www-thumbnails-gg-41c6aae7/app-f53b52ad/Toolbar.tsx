@@ -149,7 +149,7 @@ export function Wordmark({ size = 17 }: WordmarkProps) {
   return (
     <span
       style={{
-        fontFamily: "var(--font-sans)",
+        fontFamily: "var(--font-sans), sans-serif",
         fontWeight: 600,
         letterSpacing: "-0.03em",
         fontSize: size,
