@@ -299,18 +299,6 @@ export function WatchView({
               <span className="ytw-action">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                   <path
-                    d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19h14"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Download
-              </span>
-              <span className="ytw-action">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
                     d="M5 5h14M5 5l1.5 9a2 2 0 002 1.7h5a2 2 0 002-1.7L17 5M9 9v3m6-3v3"
                     stroke="currentColor"
                     strokeWidth="1.6"

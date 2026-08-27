@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode, RefObject } from "react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
+import type { SaveState } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useTaskAutosave";
 import type { ViewMode } from "@/types/thumbnails-app";
 
 /* ------------------------------------------------------------------ */
@@ -456,9 +457,120 @@ interface ToolbarProps {
   targetRef: RefObject<HTMLDivElement | null>;
   onFlash: () => void;
   flashActive: boolean;
+  taskName?: string | null;
+  saveState?: SaveState;
+  onRename?: (name: string) => void;
 }
 
-export function Toolbar({ targetRef, onFlash, flashActive }: ToolbarProps) {
+/** Editable test name plus the autosave indicator, shown next to the wordmark. */
+function TaskChip({
+  taskName,
+  saveState,
+  onRename,
+}: {
+  taskName: string | null;
+  saveState: SaveState;
+  onRename?: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(taskName ?? "");
+
+  const label =
+    saveState === "saving"
+      ? "Saving…"
+      : saveState === "error"
+        ? "Not saved"
+        : saveState === "saved"
+          ? "Saved"
+          : "Unsaved";
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    if (next && next !== taskName) onRename?.(next);
+  };
+
+  return (
+    <span
+      className="tool-by"
+      style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+    >
+      <span style={{ color: "var(--border-default)" }}>/</span>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") {
+              setDraft(taskName ?? "");
+              setEditing(false);
+            }
+          }}
+          className="focus-ring fx"
+          style={{
+            height: 24,
+            width: 180,
+            padding: "0 8px",
+            borderRadius: 6,
+            background: "var(--bg-sunken)",
+            border: "1px solid var(--border-default)",
+            color: "var(--text-primary)",
+            fontSize: 12.5,
+            fontFamily: "inherit",
+            outline: "none",
+          }}
+        />
+      ) : (
+        <button
+          onClick={() => {
+            setDraft(taskName ?? "");
+            setEditing(true);
+          }}
+          disabled={!onRename || !taskName}
+          className="focus-ring"
+          title={taskName ? "Rename this test" : undefined}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            fontFamily: "inherit",
+            fontSize: 12.5,
+            fontWeight: 500,
+            color: "var(--text-secondary)",
+            cursor: onRename && taskName ? "pointer" : "default",
+            maxWidth: 200,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {taskName ?? "New test"}
+        </button>
+      )}
+      <span
+        style={{
+          fontSize: 11,
+          color: saveState === "error" ? "#ff8f8f" : "var(--text-faint)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
+export function Toolbar({
+  targetRef,
+  onFlash,
+  flashActive,
+  taskName = null,
+  saveState = "idle",
+  onRename,
+}: ToolbarProps) {
   const feed = useFeed();
   const isDark = feed.theme === "dark";
 
@@ -479,6 +591,7 @@ export function Toolbar({ targetRef, onFlash, flashActive }: ToolbarProps) {
             mattos
           </a>
         </span>
+        <TaskChip taskName={taskName} saveState={saveState} onRename={onRename} />
       </span>
       <span className="tbar-grow" />
       <TSeg lg value={feed.viewMode} onChange={(v) => feed.setViewMode(v)} options={VIEW_MODE_OPTIONS} />

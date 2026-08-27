@@ -205,6 +205,11 @@ export interface FeedState {
   setHighlight: (b: boolean) => void;
   updateTestCard: (patch: Partial<TestCard>) => void;
 
+  /** Replace the saved-task-owned slice of state wholesale. */
+  hydrate: (snap: Partial<FeedState>) => void;
+  /** Return every task-owned field to its default. */
+  resetAll: () => void;
+
   setFeedSource: (s: FeedSource) => void;
   addCompetitor: (url: string) => void;
   removeCompetitor: (id: string) => void;

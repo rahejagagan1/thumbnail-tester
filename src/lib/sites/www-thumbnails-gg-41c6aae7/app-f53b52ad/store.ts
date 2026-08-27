@@ -110,6 +110,29 @@ export const useFeed = create<FeedState>((set) => ({
   updateTestCard: (patch) =>
     set((s) => ({ testCard: { ...s.testCard, ...patch } })),
 
+  hydrate: (snap) => set(snap),
+
+  resetAll: () =>
+    set({
+      testCard: DEFAULT_TEST_CARD,
+      thumbMode: "single",
+      thumbnails: [],
+      titleMode: "single",
+      titles: [],
+      placement: "first",
+      theme: "dark",
+      viewMode: "desktop",
+      columns: "auto",
+      blur: 0,
+      grayscale: false,
+      showSafeAreaOverlay: false,
+      highlightTestCard: false,
+      inspect: null,
+      feedSource: "random",
+      competitors: [],
+      competitorsLoading: false,
+    }),
+
   setFeedSource: (feedSource) => set({ feedSource }),
 
   addCompetitor: (url) =>

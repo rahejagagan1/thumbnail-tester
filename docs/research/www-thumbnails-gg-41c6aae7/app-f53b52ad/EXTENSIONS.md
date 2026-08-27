@@ -109,12 +109,64 @@ of silently swallowing it.
 
 ---
 
-## Remaining gap
+## 3. Task library and autosave (added)
 
-`GET /api/videos` — the target refreshes its 182-video random pool from this endpoint on
-mount. Not implemented; the fetch stays and fails soft onto the bundled dataset. It is
-not needed for any behaviour, and the competitor feed now covers the real use case it
-was serving.
+**Why:** the tester held one in-memory test. Reload and your thumbnail was gone.
+
+### Routing
+
+| Route | What it is |
+|---|---|
+| `/` | the library — every saved test, plus **New test** |
+| `/app` | the tester (this also restores the target's own pathname) |
+| `/app?task=<id>` | the tester with a saved test loaded |
+
+The clone itself was unchanged by the move; `/app` still diffs to zero against the target
+outside the two added features.
+
+### Storage — IndexedDB, not localStorage
+
+`taskDb.ts` keeps two object stores:
+
+- `tasks` — small JSON-clonable records, indexed by `updatedAt`
+- `blobs` — the actual image Blobs, referenced by id
+
+localStorage was ruled out: a 1280x720 PNG is comfortably over 1MB and base64 adds
+another third, against a ~5MB total budget — three or four saves and it is full.
+IndexedDB stores Blobs natively with a far larger quota.
+
+Blobs live outside the task record so the library can list tests without pulling
+megabytes of image data. `deleteTask` garbage-collects a task's blobs but first checks
+every other task, so a duplicated test never loses its image.
+
+### Autosave
+
+`useTaskAutosave.ts` subscribes to the store and debounces a write 900ms after the last
+change. It will not create a record until `isWorthSaving()` is true — an upload, a
+variant, a competitor, or an edited title/channel — so opening the tester and leaving
+does not litter the library with empty tests. Concurrent saves are collapsed via an
+in-flight flag with a dirty bit.
+
+`taskSnapshot.ts` converts between store state and a task record. Freshly-uploaded
+images (`blob:` URLs) are persisted; images already backed by a blob id are reused, so
+repeated autosaves do not grow the database.
+
+The toolbar carries the test name (click to rename) and a Saved / Saving… / Not saved
+indicator.
+
+### Limits worth knowing
+
+Storage is per-browser and per-origin. Tests do not sync across devices or browsers, and
+clearing site data removes them. Private windows usually block IndexedDB entirely — the
+library detects this and says so rather than silently losing work.
+
+---
+
+## Closed gap
+
+`GET /api/videos` is now implemented (`src/app/api/videos/route.ts`). It serves the same
+bundled 182-video dataset the client already ships, so behaviour is identical to before
+and the client's fetch no longer 404s on every page load.
 
 ## Fragility note
 
@@ -122,3 +174,30 @@ Both endpoints depend on the shape of YouTube's `ytInitialData` payload, which G
 changes without notice. Every parse step is defensive — a shape change degrades to
 "Could not read the channel page" rather than throwing — but if competitor fetching
 starts failing across the board, the parser in `youtube.ts` is the first place to look.
+
+
+---
+
+## Verification
+
+`npm run test:e2e` (needs `npm run dev` running) drives a real Chromium through the whole
+task flow: empty library, create, upload, edit, autosave, reopen, hard reload, duplicate,
+delete, and a console-error check. 17/17 passing.
+
+Clone fidelity is re-checked after every change by diffing `/app`'s server-rendered DOM
+against the target's own HTML with the two added blocks excised:
+
+```
+clone nodes: 698
+  - task chip:            7 nodes
+  - Competitors section:  33 nodes
+clone with both excised: 658 | target: 658
+divergences outside the added features: 0
+```
+
+### Fidelity bug found during visual QA
+
+The Watch surface had three action buttons — Share, **Download**, Save. The target has
+only Share and Save; the extra button came from an error in the builder brief, not from
+the recovered source. Removed, and confirmed against both the bundle
+(two `ytw-action` entries) and the live page.
