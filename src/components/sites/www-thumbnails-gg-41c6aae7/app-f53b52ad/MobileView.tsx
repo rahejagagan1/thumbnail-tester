@@ -13,10 +13,11 @@ import {
   YouTubeLogo,
 } from "@/components/sites/www-thumbnails-gg-41c6aae7/shared/icons";
 import { MOBILE_CHIPS } from "@/data/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/guideChannels";
-import { genThumb, monogramColor } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
+import { genThumb } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 import { useInfiniteScroll } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useInfiniteScroll";
 import type { CardViewModel } from "@/types/thumbnails-app";
+import { ChannelAvatar } from "./ChannelAvatar";
 
 interface MobileViewProps {
   cards: CardViewModel[];
@@ -134,17 +135,7 @@ function MobileVideoCard({
       </div>
       <div className="ytm-info">
         <div className="ytm-avatar">
-          {vm.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={vm.avatar} alt="" draggable={false} />
-          ) : (
-            <span
-              className="yt-monogram"
-              style={{ background: monogramColor(vm.channel) }}
-            >
-              {vm.channel.trim().charAt(0).toUpperCase() || "?"}
-            </span>
-          )}
+          <ChannelAvatar src={vm.avatar} channel={vm.channel} />
         </div>
         <div className="ytm-text">
           <h3 className="ytm-title">{vm.title}</h3>

@@ -206,6 +206,27 @@ function readLockups(data: Json): RawVideo[] {
   return out;
 }
 
+/**
+ * Makes a channel avatar URL safe to render directly.
+ *
+ * - `ytInitialData` sometimes returns protocol-relative URLs.
+ * - Avatars are served from both `yt3.googleusercontent.com` and its
+ *   `yt3.ggpht.com` alias; the latter is what YouTube's own feed uses and what
+ *   the target site's dataset carries, so we normalise onto it.
+ * - The default `=s900` variant is ~10x larger than needed for a 36px avatar.
+ *   Asking for `s176` cuts bandwidth and makes CDN rate limiting far less likely.
+ */
+function normalizeAvatar(url: string | null): string | null {
+  if (!url) return null;
+  let out = url.trim();
+  if (!out) return null;
+  if (out.startsWith("//")) out = `https:${out}`;
+  if (!/^https?:\/\//i.test(out)) return null;
+  out = out.replace("//yt3.googleusercontent.com/", "//yt3.ggpht.com/");
+  out = out.replace(/=s\d+-/, "=s176-");
+  return out;
+}
+
 function readChannelIdentity(data: Json) {
   const root = (data ?? {}) as Record<string, Json>;
   const header = root.header ?? {};
@@ -213,7 +234,9 @@ function readChannelIdentity(data: Json) {
   const title = typeof meta?.title === "string" ? meta.title : null;
   const thumbs = (meta?.avatar as { thumbnails?: { url: string }[] } | undefined)
     ?.thumbnails;
-  const avatar = thumbs?.length ? thumbs[thumbs.length - 1].url : null;
+  const avatar = normalizeAvatar(
+    thumbs?.length ? thumbs[thumbs.length - 1].url : null,
+  );
   const channelUrl =
     typeof meta?.channelUrl === "string" ? meta.channelUrl : undefined;
 

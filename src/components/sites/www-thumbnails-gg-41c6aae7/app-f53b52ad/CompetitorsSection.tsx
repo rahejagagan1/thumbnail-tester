@@ -82,6 +82,7 @@ function StatusDot({ competitor }: { competitor: Competitor }) {
 function CompetitorRow({ competitor }: { competitor: Competitor }) {
   const toggleCompetitor = useFeed((s) => s.toggleCompetitor);
   const removeCompetitor = useFeed((s) => s.removeCompetitor);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const label = competitor.channel ?? competitor.url;
   const detail =
@@ -146,12 +147,13 @@ function CompetitorRow({ competitor }: { competitor: Competitor }) {
         )}
       </button>
 
-      {competitor.avatar ? (
+      {competitor.avatar && !avatarFailed ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={competitor.avatar}
           alt=""
           draggable={false}
+          onError={() => setAvatarFailed(true)}
           style={{
             width: 22,
             height: 22,

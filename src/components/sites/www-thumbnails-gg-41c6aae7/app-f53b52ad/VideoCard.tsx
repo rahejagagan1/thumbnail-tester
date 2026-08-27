@@ -1,8 +1,9 @@
 "use client";
 
-import { genThumb, monogramColor } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
+import { genThumb } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import { IconKebab, IconVerified } from "@/components/sites/www-thumbnails-gg-41c6aae7/shared/icons";
 import type { CardViewModel } from "@/types/thumbnails-app";
+import { ChannelAvatar } from "./ChannelAvatar";
 
 interface VideoCardProps {
   vm: CardViewModel;
@@ -64,17 +65,7 @@ export function VideoCard({
       </div>
       <div className="yt-card-details">
         <div className="yt-card-avatar">
-          {vm.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={vm.avatar} alt="" draggable={false} />
-          ) : (
-            <span
-              className="yt-monogram"
-              style={{ background: monogramColor(vm.channel) }}
-            >
-              {vm.channel.trim().charAt(0).toUpperCase() || "?"}
-            </span>
-          )}
+          <ChannelAvatar src={vm.avatar} channel={vm.channel} />
         </div>
         <div className="yt-card-text">
           <h3 className="yt-card-title">{vm.title}</h3>

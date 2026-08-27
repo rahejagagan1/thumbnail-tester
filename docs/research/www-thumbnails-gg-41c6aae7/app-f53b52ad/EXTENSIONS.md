@@ -74,6 +74,22 @@ The verified tick is read from a `CHECK_CIRCLE_FILLED` client resource inside th
 header. (The same icon appears next to channel names in video lockups, so the check is
 scoped to `header` only.) Validated against verified channels and an unverified one.
 
+### Avatars
+
+Fetched avatar URLs are normalised in `normalizeAvatar()` before they reach the client:
+protocol-relative URLs get a scheme, `yt3.googleusercontent.com` is rewritten to its
+`yt3.ggpht.com` alias (what YouTube's own feed and the target's dataset use), and the
+`=s900` size is dropped to `=s176`. The avatar renders at 36px, so s900 was ~10x more
+bytes than needed and made CDN rate limiting much more likely.
+
+Google's avatar CDN returns **429 Too Many Requests** under load, which previously left a
+broken-image glyph in the card because the target only falls back to its monogram when
+`avatar` is null — never when the image *fails*. `ChannelAvatar.tsx` closes that gap: it
+falls back to the target's coloured monogram on `onError` as well as on null. `onError`
+is a client-side handler and is not serialised into HTML, so the rendered markup stays
+byte-identical to the target on the happy path (verified: 658 vs 658 nodes, zero
+divergences outside the added Competitors section).
+
 ---
 
 ## 2. Channel handle lookup (completed)
