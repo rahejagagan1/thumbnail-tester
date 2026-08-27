@@ -86,9 +86,31 @@ export default function ThumbnailTesterPage() {
     };
   }, [handleFiles]);
 
+  // The surrounding cards: either the random pool, or the top videos pulled
+  // from the competitor channels the user pinned. Falls back to the pool while
+  // no competitor has loaded, so the feed is never empty.
+  const competitorVideos = useMemo<PoolVideo[]>(() => {
+    const enabled = feed.competitors.filter((c) => c.enabled);
+    const merged: PoolVideo[] = [];
+    const seen = new Set<string>();
+    for (const c of enabled) {
+      for (const v of c.videos) {
+        if (seen.has(v.id)) continue;
+        seen.add(v.id);
+        merged.push(v);
+      }
+    }
+    return merged;
+  }, [feed.competitors]);
+
+  const activePool =
+    feed.feedSource === "competitors" && competitorVideos.length > 0
+      ? competitorVideos
+      : pool;
+
   const cards = useMemo<CardViewModel[]>(() => {
     const shuffled = seededShuffle(
-      pool,
+      activePool,
       flashActive ? flash.seed : feed.seed,
     ).map<CardViewModel>((v) => ({
       id: v.id,
@@ -174,7 +196,7 @@ export default function ThumbnailTesterPage() {
     }
     return out;
   }, [
-    pool,
+    activePool,
     feed.seed,
     feed.placement,
     testCard,
@@ -187,7 +209,7 @@ export default function ThumbnailTesterPage() {
     flash.seed,
   ]);
 
-  const resetKey = `${feed.viewMode}-${feed.seed}-${feed.placement}`;
+  const resetKey = `${feed.viewMode}-${feed.seed}-${feed.placement}-${feed.feedSource}-${activePool.length}`;
 
   return (
     <div className="tool-root">

@@ -86,8 +86,16 @@ or output of the target's own procedural generator.
 
 | Gap | Reason |
 |---|---|
-| `GET /api/videos` | Backend explicitly out of scope. The fetch is retained and fails soft; the bundled 182-video pool serves the feed. |
-| `GET /api/channel` | Requires a YouTube Data API key. The Fetch button calls the endpoint and no-ops on failure rather than fabricating channel data. |
+| `GET /api/videos` | Backend out of scope. The fetch is retained and fails soft; the bundled 182-video pool serves the feed. |
 
-Both are backend endpoints, out of scope by the clone's stated defaults. No visual or
-interactive behaviour depends on them.
+`GET /api/channel` was originally listed here too. It has since been implemented — see
+`EXTENSIONS.md` — using a key-less server-side reader of YouTube's own channel pages.
+
+No visual or interactive behaviour depends on `/api/videos`.
+
+## Post-clone additions
+
+Work added on top of the clone at the user's request is documented separately in
+`EXTENSIONS.md`: the competitor feed (`/api/competitors`, `CompetitorsSection.tsx`,
+`youtube.ts`) and the now-working channel handle lookup (`/api/channel`). These are
+intentional differences from the target.

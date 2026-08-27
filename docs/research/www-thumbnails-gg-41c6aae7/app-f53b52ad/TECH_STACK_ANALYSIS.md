@@ -52,12 +52,14 @@ ships the React `jsx()` calls intact. That made three things directly recoverabl
 | Feature | Why | What we do instead |
 |---|---|---|
 | `GET /api/videos` | No backend in scope | The fetch stays and fails soft; the bundled 182-video pool is the source of truth |
-| `GET /api/channel` (handle → name + avatar lookup) | Requires a YouTube Data API key | The Fetch button calls the endpoint and silently no-ops on failure — no fabricated channel data |
+| `GET /api/channel` (handle → name + avatar lookup) | Was assumed to need a YouTube Data API key | **Now implemented** without a key by reading YouTube's channel pages server-side — see `EXTENSIONS.md` |
 | Analytics / telemetry | Out of scope | Omitted |
 
-Both endpoints are absent by design, not by oversight. Everything the user can do without
-a network round-trip — upload, drag-drop, every editor control, all three surfaces, both
-themes, the squint tests, the flash test, the inspect modal, and PNG export — works.
+`/api/videos` is absent by design, not by oversight, and nothing depends on it.
+Everything the user can do without a network round-trip — upload, drag-drop, every editor
+control, all three surfaces, both themes, the squint tests, the flash test, the inspect
+modal, and PNG export — works. The competitor feed added on top of the clone
+(`EXTENSIONS.md`) does need the network, and degrades with an inline error when it fails.
 
 ## Third-party content
 

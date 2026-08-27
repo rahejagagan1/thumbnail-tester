@@ -73,6 +73,41 @@ export interface CardViewModel {
   isPlaceholder?: boolean;
 }
 
+/** Where the surrounding (non-test) cards in the feed come from. */
+export type FeedSource = "random" | "competitors";
+
+export type CompetitorStatus = "idle" | "loading" | "ready" | "error";
+
+/** One competitor channel the user has pinned for comparison. */
+export interface Competitor {
+  id: string;
+  /** Exactly what the user pasted. */
+  url: string;
+  enabled: boolean;
+  status: CompetitorStatus;
+  channel: string | null;
+  avatar: string | null;
+  subscribers: string | null;
+  /** Videos looked at before ranking by views. */
+  sampled: number;
+  videos: PoolVideo[];
+  error: string | null;
+}
+
+/** One entry in the `/api/competitors` response. */
+export interface ChannelFetchResult {
+  url: string;
+  ok: boolean;
+  channel?: string;
+  channelUrl?: string;
+  avatar?: string | null;
+  verified?: boolean;
+  subscribers?: string | null;
+  sampled?: number;
+  videos?: PoolVideo[];
+  error?: string;
+}
+
 export interface GuideChannel {
   name: string;
   avatar: string | null;
@@ -143,6 +178,10 @@ export interface FeedState {
   uploadHandler: (() => void) | null;
   dropHandler: ((files: File[]) => void) | null;
 
+  feedSource: FeedSource;
+  competitors: Competitor[];
+  competitorsLoading: boolean;
+
   setUploadHandler: (fn: (() => void) | null) => void;
   setDropHandler: (fn: ((files: File[]) => void) | null) => void;
   setTheme: (t: Theme) => void;
@@ -165,4 +204,12 @@ export interface FeedState {
   setShowSafeArea: (b: boolean) => void;
   setHighlight: (b: boolean) => void;
   updateTestCard: (patch: Partial<TestCard>) => void;
+
+  setFeedSource: (s: FeedSource) => void;
+  addCompetitor: (url: string) => void;
+  removeCompetitor: (id: string) => void;
+  toggleCompetitor: (id: string) => void;
+  patchCompetitor: (id: string, patch: Partial<Competitor>) => void;
+  setCompetitorsLoading: (loading: boolean) => void;
+  clearCompetitors: () => void;
 }

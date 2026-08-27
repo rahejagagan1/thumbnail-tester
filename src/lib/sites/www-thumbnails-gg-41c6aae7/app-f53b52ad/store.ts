@@ -43,6 +43,10 @@ export const useFeed = create<FeedState>((set) => ({
   uploadHandler: null,
   dropHandler: null,
 
+  feedSource: "random",
+  competitors: [],
+  competitorsLoading: false,
+
   setUploadHandler: (fn) => set({ uploadHandler: fn }),
   setDropHandler: (fn) => set({ dropHandler: fn }),
   setTheme: (theme) => set({ theme }),
@@ -105,4 +109,53 @@ export const useFeed = create<FeedState>((set) => ({
   setHighlight: (highlightTestCard) => set({ highlightTestCard }),
   updateTestCard: (patch) =>
     set((s) => ({ testCard: { ...s.testCard, ...patch } })),
+
+  setFeedSource: (feedSource) => set({ feedSource }),
+
+  addCompetitor: (url) =>
+    set((s) => {
+      const trimmed = url.trim();
+      if (!trimmed) return {};
+      // Re-adding the same channel should be a no-op, not a duplicate row.
+      const key = (v: string) => v.trim().toLowerCase().replace(/\/+$/, "");
+      if (s.competitors.some((c) => key(c.url) === key(trimmed))) return {};
+      return {
+        competitors: [
+          ...s.competitors,
+          {
+            id: uid(),
+            url: trimmed,
+            enabled: true,
+            status: "idle",
+            channel: null,
+            avatar: null,
+            subscribers: null,
+            sampled: 0,
+            videos: [],
+            error: null,
+          },
+        ],
+      };
+    }),
+
+  removeCompetitor: (id) =>
+    set((s) => ({ competitors: s.competitors.filter((c) => c.id !== id) })),
+
+  toggleCompetitor: (id) =>
+    set((s) => ({
+      competitors: s.competitors.map((c) =>
+        c.id === id ? { ...c, enabled: !c.enabled } : c,
+      ),
+    })),
+
+  patchCompetitor: (id, patch) =>
+    set((s) => ({
+      competitors: s.competitors.map((c) =>
+        c.id === id ? { ...c, ...patch } : c,
+      ),
+    })),
+
+  setCompetitorsLoading: (competitorsLoading) => set({ competitorsLoading }),
+
+  clearCompetitors: () => set({ competitors: [] }),
 }));

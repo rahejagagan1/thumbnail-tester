@@ -5,6 +5,7 @@ import type { CSSProperties, InputHTMLAttributes, ReactNode } from "react";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 import { AGE_OPTIONS } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import type { Columns } from "@/types/thumbnails-app";
+import { CompetitorsSection } from "./CompetitorsSection";
 
 /** Line-wrap estimate for the target's fixed-width thumbnail title box (~26 chars/line). */
 function lineCount(text: string): number {
@@ -656,12 +657,16 @@ function TitleList() {
   );
 }
 
-type FetchStatus = { kind: "idle" } | { kind: "loading" };
+type FetchStatus =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string };
 
 interface ChannelLookupResponse {
   name?: string;
   avatar?: string | null;
   verified?: boolean;
+  error?: string;
 }
 
 function ChannelHandleField() {
@@ -675,20 +680,19 @@ function ChannelHandleField() {
     setStatus({ kind: "loading" });
     try {
       const res = await fetch(`/api/channel?handle=${encodeURIComponent(query)}`);
-      if (res.ok) {
-        const data = (await res.json()) as ChannelLookupResponse;
-        if (data.name) {
-          updateTestCard({
-            channelName: data.name,
-            channelAvatarSrc: data.avatar ?? null,
-            verified: !!data.verified,
-          });
-        }
+      const data = (await res.json()) as ChannelLookupResponse;
+      if (res.ok && data.name) {
+        updateTestCard({
+          channelName: data.name,
+          channelAvatarSrc: data.avatar ?? null,
+          verified: !!data.verified,
+        });
+        setStatus({ kind: "idle" });
+      } else {
+        setStatus({ kind: "error", message: data.error ?? "Channel not found." });
       }
     } catch {
-      // No backend in this clone — silently no-op rather than inventing fake data.
-    } finally {
-      setStatus({ kind: "idle" });
+      setStatus({ kind: "error", message: "Lookup failed." });
     }
   };
 
@@ -758,6 +762,18 @@ function ChannelHandleField() {
           {loading ? "…" : "Fetch"}
         </button>
       </div>
+      {status.kind === "error" && (
+        <span
+          style={{
+            display: "block",
+            marginTop: 6,
+            fontSize: 11,
+            color: "#ff8f8f",
+          }}
+        >
+          {status.message}
+        </span>
+      )}
     </Field>
   );
 }
@@ -967,6 +983,10 @@ export function EditorPanel() {
             </div>
           )}
         </Field>
+      </Section>
+
+      <Section title="Competitors">
+        <CompetitorsSection />
       </Section>
 
       <Section title="Placement">
