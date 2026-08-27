@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
+/** Key that, when changed, rewinds pagination back to the first page. */
+type ResetKey = string | undefined;
+
 interface Options {
   initial?: number;
   step?: number;
@@ -21,9 +24,17 @@ export function useInfiniteScroll<T>(
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const total = items.length;
 
-  useEffect(() => {
+  // Rewind to the first page whenever the feed is recomposed. Adjusting state
+  // during render (rather than in an effect) avoids a wasted pass showing the
+  // old page count against the new feed.
+  const [prev, setPrev] = useState<{ key: ResetKey; initial: number }>({
+    key: resetKey,
+    initial,
+  });
+  if (prev.key !== resetKey || prev.initial !== initial) {
+    setPrev({ key: resetKey, initial });
     setCount(initial);
-  }, [resetKey, initial]);
+  }
 
   useEffect(() => {
     const el = sentinelRef.current;
