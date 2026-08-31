@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE_URL ?? 'http://localhost:3011';
 const OUT = path.join(os.tmpdir(), 'thumbnail-tester-e2e');
 fs.mkdirSync(OUT, { recursive: true });
 

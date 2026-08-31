@@ -21,7 +21,7 @@ A reusable template for reverse-engineering any website into a clean, modern Nex
 - **Deployment:** Vercel
 
 ## Commands
-- `npm run dev` — Start dev server
+- `npm run dev` — Start dev server on **http://localhost:3011** (`npm start` uses the same port)
 - `npm run build` — Production build
 - `npm run lint` — ESLint check
 - `npm run typecheck` — TypeScript check

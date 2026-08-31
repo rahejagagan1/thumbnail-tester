@@ -1,13 +1,14 @@
 // End-to-end check of sharing: publish a test, open it as a stranger, save a
 // copy, update the link in place, revoke it — plus the abuse cases on the API.
 //
-// Requires `npm run dev` (or `npm start`) on :3000.
+// Requires `npm run dev` (or `npm start`), which listens on :3011.
+// Point BASE_URL elsewhere to run against another origin.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const BASE = 'http://localhost:3000';
+const BASE = process.env.BASE_URL ?? 'http://localhost:3011';
 const OUT = path.join(os.tmpdir(), 'thumbnail-tester-e2e-share');
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -66,7 +67,11 @@ async function makePng(page, label) {
   await author.waitForTimeout(2500);
 
   const link = await author.locator('.tmenu input[readonly]').inputValue();
-  check('link looks right', /^http:\/\/localhost:3000\/s\/[a-z0-9]{12}$/.test(link), link);
+  // Built from BASE so the assertion follows the port instead of pinning it.
+  const linkShape = new RegExp(
+    `^${BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/s/[a-z0-9]{12}$`,
+  );
+  check('link looks right', linkShape.test(link), link);
   await author.screenshot({ path: path.join(OUT, '01-share-created.png') });
   await author.keyboard.press('Escape');
   await author.waitForTimeout(300);
