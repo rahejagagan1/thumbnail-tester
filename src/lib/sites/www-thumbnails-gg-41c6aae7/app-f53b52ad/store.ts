@@ -9,6 +9,16 @@ function uid(): string {
     : `t${Date.now()}${Math.random()}`;
 }
 
+/**
+ * Placeholder copy on an untouched test card.
+ *
+ * Exported because "still the default" is what decides whether a session is
+ * worth saving — see `isWorthSaving`. Keeping one definition means a reworded
+ * placeholder can never silently start saving empty tests.
+ */
+export const DEFAULT_CARD_TITLE = "Your Title Goes Here";
+export const DEFAULT_CARD_CHANNEL = "Your Channel";
+
 const DEFAULT_TEST_CARD: TestCard = {
   id: "__test__",
   imageSrc: null,
@@ -16,8 +26,8 @@ const DEFAULT_TEST_CARD: TestCard = {
   duration: "12:34",
   showDuration: true,
   watchedPercent: 0,
-  title: "Your Title Goes Here",
-  channelName: "mattos",
+  title: DEFAULT_CARD_TITLE,
+  channelName: DEFAULT_CARD_CHANNEL,
   channelAvatarSrc: null,
   verified: false,
   viewCount: "124K",

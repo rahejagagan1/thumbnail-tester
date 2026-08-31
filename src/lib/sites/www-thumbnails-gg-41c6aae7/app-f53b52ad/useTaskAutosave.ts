@@ -50,6 +50,9 @@ export function useTaskAutosave(taskId: string | null) {
   const [state, setState] = useState<SaveState>("idle");
   const [name, setName] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Mirrors idRef as state so consumers re-render when a brand-new test is
+  // first assigned an id (sharing needs a stable one to point at).
+  const [savedId, setSavedId] = useState<string | null>(taskId);
 
   // The last persisted record, so re-saves can reuse existing blob ids.
   const recordRef = useRef<TaskRecord | null>(null);
@@ -63,6 +66,7 @@ export function useTaskAutosave(taskId: string | null) {
     let alive = true;
     idRef.current = taskId;
     recordRef.current = null;
+    setSavedId(taskId);
     setLoaded(false);
 
     const run = async () => {
@@ -113,13 +117,30 @@ export function useTaskAutosave(taskId: string | null) {
     inFlightRef.current = true;
     setState("saving");
     try {
-      const record = await toTaskRecord(snap, recordRef.current, {
+      // Re-read rather than trusting the cached record: fields this hook does
+      // not own — `share`, above all — are written straight to the database by
+      // other components, and a stale base would silently revert them.
+      const existing = idRef.current
+        ? ((await getTask(idRef.current)) ?? recordRef.current)
+        : recordRef.current;
+      const record = await toTaskRecord(snap, existing, {
         id: idRef.current ?? undefined,
         name: name ?? undefined,
       });
       await saveTask(record);
       recordRef.current = record;
       idRef.current = record.id;
+      setSavedId(record.id);
+      // A test created from scratch has no `?task=` yet. Put it in the address
+      // bar without a navigation, so reloading (or sharing the tab) reopens the
+      // same test rather than starting an empty one.
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("task") !== record.id) {
+          url.searchParams.set("task", record.id);
+          window.history.replaceState(null, "", url);
+        }
+      }
       setName((n) => n ?? record.name);
       setState("saved");
     } catch {
@@ -151,7 +172,9 @@ export function useTaskAutosave(taskId: string | null) {
       const trimmed = next.trim();
       if (!trimmed) return;
       setName(trimmed);
-      const current = recordRef.current;
+      const current = idRef.current
+        ? ((await getTask(idRef.current)) ?? recordRef.current)
+        : recordRef.current;
       if (current) {
         const updated = { ...current, name: trimmed, updatedAt: Date.now() };
         recordRef.current = updated;
@@ -169,7 +192,7 @@ export function useTaskAutosave(taskId: string | null) {
   return {
     saveState: state,
     taskName: name,
-    taskId: idRef.current,
+    taskId: savedId,
     loaded,
     rename,
     saveNow: flush,

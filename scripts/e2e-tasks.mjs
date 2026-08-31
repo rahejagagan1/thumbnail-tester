@@ -59,7 +59,7 @@ const check = (name, pass, detail = '') => {
   await titleBox.fill('Persistence check 12345');
   await page.waitForTimeout(2500); // debounce + write
 
-  const saveLabel = await page.locator('.tool-by span').last().innerText();
+  const saveLabel = await page.locator('[data-save-state]').innerText();
   check('autosave reported Saved', saveLabel.trim() === 'Saved', `label="${saveLabel.trim()}"`);
   check('title reached the feed',
     (await page.locator('.yt-card[data-test=true] .yt-card-title').innerText()).includes('Persistence check'));

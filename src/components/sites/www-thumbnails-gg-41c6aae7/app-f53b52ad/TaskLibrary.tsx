@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { SharePopover } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/SharePopover";
+import { revokeShareForTask } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/shareClient";
 import { PLACEHOLDER_THUMB } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import {
   blobUrl,
@@ -154,14 +156,35 @@ function TaskCard({
         position: "relative",
       }}
     >
-      <Link
-        href={`/app?task=${encodeURIComponent(task.id)}`}
-        className="focus-ring"
-        style={{ display: "block", borderRadius: 10, textDecoration: "none" }}
-        aria-label={`Open ${task.name}`}
-      >
-        <Cover blobId={task.coverBlobId} alt="" />
-      </Link>
+      <div style={{ position: "relative" }}>
+        <Link
+          href={`/app?task=${encodeURIComponent(task.id)}`}
+          className="focus-ring"
+          style={{ display: "block", borderRadius: 10, textDecoration: "none" }}
+          aria-label={`Open ${task.name}`}
+        >
+          <Cover blobId={task.coverBlobId} alt="" />
+        </Link>
+        {task.shareId && (
+          <span
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              color: "#fff",
+              background: "rgba(0,0,0,0.62)",
+              borderRadius: 999,
+              padding: "3px 8px",
+              pointerEvents: "none",
+            }}
+          >
+            SHARED
+          </span>
+        )}
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
         {editing ? (
@@ -265,6 +288,12 @@ function TaskCard({
         >
           Open
         </Link>
+        <SharePopover
+          taskId={task.id}
+          align="right"
+          compact
+          onChanged={onChanged}
+        />
         <button
           onClick={async () => {
             setBusy(true);
@@ -314,6 +343,8 @@ function TaskCard({
               return;
             }
             setBusy(true);
+            // Take the public link down with the test it points at.
+            await revokeShareForTask(task.id);
             await deleteTask(task.id);
             setBusy(false);
             onChanged();
@@ -415,17 +446,6 @@ export function TaskLibrary() {
             >
               thumbnails
             </span>
-          </span>
-          <span className="tool-by">
-            by{" "}
-            <a
-              href="https://x.com/mattos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="focus-ring"
-            >
-              mattos
-            </a>
           </span>
         </span>
         <Link href="/app" className="tprimary focus-ring" style={{ textDecoration: "none" }}>

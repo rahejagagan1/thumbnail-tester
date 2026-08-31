@@ -23,7 +23,7 @@ Page assembly lives in `src/app/page.tsx`.
 ## Component detail
 
 ### Toolbar (`.tool-topbar`)
-- **Structure:** brand (`Wordmark` + "by mattos") · spacer · surface `TSeg` (Desktop/Mobile/Watch, `lg`, 106px columns) · spacer · `.tbar-right` (theme `.ticon`, `SquintMenu`, flash `.ticon`, reshuffle `.ticon`, `ExportMenu`).
+- **Structure:** brand (`Wordmark`; the target also prints an author credit beside it, deliberately not carried over — see `EXTENSIONS.md`) · spacer · surface `TSeg` (Desktop/Mobile/Watch, `lg`, 106px columns) · spacer · `.tbar-right` (theme `.ticon`, `SquintMenu`, flash `.ticon`, reshuffle `.ticon`, `ExportMenu`).
 - **Variants:** `TSeg` has `lg` (30px tall, 13.5px text, fixed-width columns) and `full` (equal `1fr` columns) modes, and an optional per-option icon.
 - **States:** `data-active` drives the sliding `.tseg-thumb`; `.tbtn[data-active]` for an open or dirty Squint menu; flash button disabled while a flash test runs.
 - **Interactions:** two popovers, each with a fixed `z-index: 40` click-away scrim.

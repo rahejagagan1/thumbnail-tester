@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -16,32 +15,18 @@ import { InspectModal } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-
 import { MobileView } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/MobileView";
 import { Toolbar } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/Toolbar";
 import { WatchView } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/WatchView";
-import { FALLBACK_VIDEOS } from "@/data/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/fallbackVideos";
-import { VIDEO_POOL } from "@/data/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/videoPool";
-import {
-  PLACEHOLDER_THUMB,
-  formatAge,
-  formatViews,
-  hashString,
-  seededShuffle,
-} from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
-import { useTaskAutosave } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useTaskAutosave";
 import {
-  INITIAL_FLASH,
-  type CardViewModel,
-  type FlashState,
-  type PoolVideo,
-} from "@/types/thumbnails-app";
+  useFeedCards,
+  useVideoPool,
+} from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useFeedCards";
+import { useTaskAutosave } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useTaskAutosave";
+import { INITIAL_FLASH, type FlashState } from "@/types/thumbnails-app";
 
 const subscribeNever = () => () => {};
 const readTaskIdFromUrl = () =>
   new URLSearchParams(window.location.search).get("task");
 const readNoTaskId = () => null;
-
-/** The bundled pool wins when it has entries; the offline list is the fallback. */
-const INITIAL_POOL: PoolVideo[] =
-  VIDEO_POOL.length > 0 ? VIDEO_POOL : FALLBACK_VIDEOS;
 
 export default function ThumbnailTesterPage() {
   // Read from the URL rather than via useSearchParams, which would force a
@@ -53,10 +38,15 @@ export default function ThumbnailTesterPage() {
     readTaskIdFromUrl,
     readNoTaskId,
   );
-  const { saveState, taskName, rename } = useTaskAutosave(taskId);
+  const {
+    saveState,
+    taskName,
+    rename,
+    taskId: savedTaskId,
+    saveNow,
+  } = useTaskAutosave(taskId);
 
   const feed = useFeed();
-  const testCard = feed.testCard;
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,24 +54,8 @@ export default function ThumbnailTesterPage() {
   const [editorOpen, setEditorOpen] = useState(true);
   const [flash, setFlash] = useState<FlashState>(INITIAL_FLASH);
   const flashActive = flash.phase !== "idle";
-  const [pool, setPool] = useState<PoolVideo[]>(INITIAL_POOL);
-
-  // Refresh the pool from the live endpoint when one is available; the bundled
-  // list stands in otherwise.
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/videos")
-      .then((r) => r.json())
-      .then((data: { videos?: PoolVideo[] }) => {
-        if (alive && Array.isArray(data?.videos) && data.videos.length > 0) {
-          setPool(data.videos);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const pool = useVideoPool();
+  const { cards, activePool } = useFeedCards(pool, flash);
 
   // Fresh feed order on every visit.
   useEffect(() => {
@@ -110,129 +84,6 @@ export default function ThumbnailTesterPage() {
     };
   }, [handleFiles]);
 
-  // The surrounding cards: either the random pool, or the top videos pulled
-  // from the competitor channels the user pinned. Falls back to the pool while
-  // no competitor has loaded, so the feed is never empty.
-  const competitorVideos = useMemo<PoolVideo[]>(() => {
-    const enabled = feed.competitors.filter((c) => c.enabled);
-    const merged: PoolVideo[] = [];
-    const seen = new Set<string>();
-    for (const c of enabled) {
-      for (const v of c.videos) {
-        if (seen.has(v.id)) continue;
-        seen.add(v.id);
-        merged.push(v);
-      }
-    }
-    return merged;
-  }, [feed.competitors]);
-
-  const activePool =
-    feed.feedSource === "competitors" && competitorVideos.length > 0
-      ? competitorVideos
-      : pool;
-
-  const cards = useMemo<CardViewModel[]>(() => {
-    const shuffled = seededShuffle(
-      activePool,
-      flashActive ? flash.seed : feed.seed,
-    ).map<CardViewModel>((v) => ({
-      id: v.id,
-      thumb: v.thumb ?? null,
-      imageFit: "cover",
-      title: v.title,
-      channel: v.channel,
-      avatar: v.avatar,
-      verified: v.verified,
-      views: v.views,
-      age: v.age,
-      duration: v.duration,
-      showDuration: true,
-      watchedPercent: 0,
-      isTest: false,
-    }));
-
-    const shared = {
-      imageFit: testCard.imageFit,
-      channel: testCard.channelName,
-      avatar: testCard.channelAvatarSrc,
-      verified: testCard.verified,
-      views: formatViews(testCard.viewCount),
-      age: formatAge(testCard.uploadedAt),
-      duration: testCard.duration,
-      showDuration: testCard.showDuration,
-      watchedPercent: testCard.watchedPercent,
-      isTest: true as const,
-    };
-
-    const activeTitles =
-      feed.titleMode === "multiple" ? feed.titles.filter((t) => t.enabled) : [];
-    const titleFor = (key: string) =>
-      activeTitles.length
-        ? activeTitles[
-            hashString(`title${feed.seed}_${key}`) % activeTitles.length
-          ].text
-        : testCard.title;
-
-    let mine: CardViewModel[];
-    if (feed.thumbMode === "multiple") {
-      mine =
-        feed.thumbnails.length === 0
-          ? [
-              {
-                id: "__test__",
-                thumb: PLACEHOLDER_THUMB,
-                title: titleFor("__test__"),
-                isPlaceholder: true,
-                ...shared,
-              },
-            ]
-          : feed.thumbnails
-              .filter((t) => t.enabled)
-              .map((t) => ({
-                id: `__test__${t.id}`,
-                thumb: t.src,
-                title: titleFor(t.id),
-                ...shared,
-              }));
-    } else {
-      mine = [
-        {
-          id: "__test__",
-          thumb: testCard.imageSrc ?? PLACEHOLDER_THUMB,
-          title: titleFor("__test__"),
-          isPlaceholder: !testCard.imageSrc,
-          ...shared,
-        },
-      ];
-    }
-
-    const out = [...shuffled];
-    if (flashActive) {
-      out.splice(Math.max(0, Math.min(flash.index, out.length)), 0, ...mine);
-    } else if (feed.placement === "first") {
-      out.unshift(...mine);
-    } else {
-      mine.forEach((card, i) => {
-        const span = Math.min(out.length + 1, 12);
-        out.splice(hashString(`pos${feed.seed}_${i}`) % span, 0, card);
-      });
-    }
-    return out;
-  }, [
-    activePool,
-    feed.seed,
-    feed.placement,
-    testCard,
-    feed.thumbMode,
-    feed.thumbnails,
-    feed.titleMode,
-    feed.titles,
-    flashActive,
-    flash.index,
-    flash.seed,
-  ]);
-
   const resetKey = `${feed.viewMode}-${feed.seed}-${feed.placement}-${feed.feedSource}-${activePool.length}`;
 
   return (
@@ -243,6 +94,8 @@ export default function ThumbnailTesterPage() {
           taskName={taskName}
           saveState={saveState}
           onRename={rename}
+          taskId={savedTaskId}
+          onBeforeShare={saveNow}
           targetRef={previewRef}
           onFlash={() =>
             setFlash((f) => ({

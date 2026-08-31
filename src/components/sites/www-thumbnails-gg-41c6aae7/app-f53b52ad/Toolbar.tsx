@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
+import { SharePopover } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/SharePopover";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 import type { SaveState } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useTaskAutosave";
 import type { ViewMode } from "@/types/thumbnails-app";
@@ -460,6 +461,10 @@ interface ToolbarProps {
   taskName?: string | null;
   saveState?: SaveState;
   onRename?: (name: string) => void;
+  /** The saved test to share; null until a new test has been saved once. */
+  taskId?: string | null;
+  /** Flushes pending edits so a share matches what is on screen. */
+  onBeforeShare?: () => Promise<void>;
 }
 
 /** Editable test name plus the autosave indicator, shown next to the wordmark. */
@@ -467,10 +472,14 @@ function TaskChip({
   taskName,
   saveState,
   onRename,
+  taskId,
+  onBeforeShare,
 }: {
   taskName: string | null;
   saveState: SaveState;
   onRename?: (name: string) => void;
+  taskId: string | null;
+  onBeforeShare?: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(taskName ?? "");
@@ -551,6 +560,7 @@ function TaskChip({
         </button>
       )}
       <span
+        data-save-state={saveState}
         style={{
           fontSize: 11,
           color: saveState === "error" ? "#ff8f8f" : "var(--text-faint)",
@@ -559,6 +569,7 @@ function TaskChip({
       >
         {label}
       </span>
+      <SharePopover taskId={taskId} beforeShare={onBeforeShare} align="left" />
     </span>
   );
 }
@@ -570,6 +581,8 @@ export function Toolbar({
   taskName = null,
   saveState = "idle",
   onRename,
+  taskId = null,
+  onBeforeShare,
 }: ToolbarProps) {
   const feed = useFeed();
   const isDark = feed.theme === "dark";
@@ -580,18 +593,13 @@ export function Toolbar({
         <Link href="/" className="tool-wordmark focus-ring" aria-label="thumbnails home">
           <Wordmark size={17} />
         </Link>
-        <span className="tool-by">
-          by{" "}
-          <a
-            href="https://x.com/mattos"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="focus-ring"
-          >
-            mattos
-          </a>
-        </span>
-        <TaskChip taskName={taskName} saveState={saveState} onRename={onRename} />
+        <TaskChip
+          taskName={taskName}
+          saveState={saveState}
+          onRename={onRename}
+          taskId={taskId}
+          onBeforeShare={onBeforeShare}
+        />
       </span>
       <span className="tbar-grow" />
       <TSeg lg value={feed.viewMode} onChange={(v) => feed.setViewMode(v)} options={VIEW_MODE_OPTIONS} />

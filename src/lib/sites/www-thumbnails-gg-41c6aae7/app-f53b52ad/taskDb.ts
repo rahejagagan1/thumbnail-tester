@@ -1,6 +1,9 @@
 "use client";
 
+import type { ShareInfo } from "@/types/share";
 import type { TaskRecord, TaskSummary } from "@/types/tasks";
+
+import { DEFAULT_CARD_CHANNEL } from "./store";
 
 /**
  * IndexedDB persistence for saved tests.
@@ -118,21 +121,47 @@ export async function saveTask(task: TaskRecord): Promise<void> {
   await tx(TASKS, "readwrite", (s) => s.put(task));
 }
 
+/**
+ * The placeholder channel name shipped before the clone's author credit was
+ * stripped. Tests saved back then still carry it, so it is swapped for the
+ * current placeholder on the way out and persisted by the next autosave.
+ *
+ * Only an untouched card matches, so a channel name the user actually typed is
+ * never rewritten. Delete this once no old tests are left in the wild.
+ */
+const RETIRED_DEFAULT_CHANNEL = "mattos";
+
+/** Brings a stored record up to the current shape. */
+function normalize(t: TaskRecord): TaskRecord {
+  return {
+    ...t,
+    // `share` post-dates the first release, so records written before it exist
+    // without the field.
+    share: t.share ?? null,
+    card:
+      t.card.channelName === RETIRED_DEFAULT_CHANNEL
+        ? { ...t.card, channelName: DEFAULT_CARD_CHANNEL }
+        : t.card,
+  };
+}
+
 export async function getTask(id: string): Promise<TaskRecord | null> {
   const t = await tx<TaskRecord | undefined>(TASKS, "readonly", (s) => s.get(id));
-  return t ?? null;
+  return t ? normalize(t) : null;
 }
 
 export async function listTasks(): Promise<TaskSummary[]> {
   const all = await tx<TaskRecord[]>(TASKS, "readonly", (s) => s.getAll());
   return all
     .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map(normalize)
     .map((t) => ({
       id: t.id,
       name: t.name,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
       coverBlobId: t.coverBlobId,
+      shareId: t.share?.id ?? null,
       title: t.card.title,
       channelName: t.card.channelName,
       viewMode: t.viewMode,
@@ -181,6 +210,8 @@ export async function duplicateTask(id: string): Promise<string | null> {
     name: `${task.name} copy`,
     createdAt: now,
     updatedAt: now,
+    // A copy is a new test; it must not inherit the original's public link.
+    share: null,
   };
   await saveTask(copy);
   return copy.id;
@@ -190,4 +221,16 @@ export async function renameTask(id: string, name: string): Promise<void> {
   const task = await getTask(id);
   if (!task) return;
   await saveTask({ ...task, name, updatedAt: Date.now() });
+}
+
+/** Records (or clears) the share link a test has been published under. */
+export async function setTaskShare(
+  id: string,
+  share: ShareInfo | null,
+): Promise<void> {
+  const task = await getTask(id);
+  if (!task) return;
+  // Deliberately does not bump `updatedAt`: publishing is not an edit, and
+  // re-ordering the library on share would be surprising.
+  await saveTask({ ...task, share });
 }

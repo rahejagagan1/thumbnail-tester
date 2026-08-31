@@ -162,6 +162,36 @@ library detects this and says so rather than silently losing work.
 
 ---
 
+## Removed from the clone
+
+### Author credit in the brand (removed)
+
+The target prints an author credit next to the wordmark — `by <handle>`, linking to that
+person's X profile — inside a `span.tool-by`. It was reproduced during the emulation phase
+and has now been removed at the user's request, from both the tester toolbar
+(`Toolbar.tsx`) and the library header (`TaskLibrary.tsx`). This is someone else's
+attribution; it does not belong on a build that is not theirs.
+
+The same handle was also the default channel name on an untouched test card. It is now
+`Your Channel`, matching the neutral `Your Title Goes Here` beside it. Both defaults are
+exported from `store.ts` as `DEFAULT_CARD_CHANNEL` / `DEFAULT_CARD_TITLE` and consumed by
+`isWorthSaving` and `defaultTaskName`, so "still untouched" is decided in one place — a
+reworded placeholder cannot silently start autosaving empty tests.
+
+The `.tool-by` class stays: the task chip and the shared-task header both use it. Its
+`a` rules in `globals.css` are now unused but are left as ported, untouched stylesheet.
+
+Verbatim captures of the target (`source-app.html`, `components/Toolbar.spec.md`) still
+contain the credit. They are evidence of what the target renders and were left alone.
+
+**Fidelity impact:** the target renders `<span class="tool-by">by <a>…</a></span>` inside
+`.tool-brand` — 2 elements, measured against `source-app.html`. Our `/app` no longer emits
+them, so a fidelity diff will report the brand region as 2 elements short. That is
+intentional; excise `.tool-brand > .tool-by` on the target side alongside the task chip
+and the Competitors section when re-running the diff.
+
+---
+
 ## Closed gap
 
 `GET /api/videos` is now implemented (`src/app/api/videos/route.ts`). It serves the same
@@ -194,6 +224,10 @@ clone nodes: 698
 clone with both excised: 658 | target: 658
 divergences outside the added features: 0
 ```
+
+Those counts predate the author-credit removal. The clone side is now 2 elements lower in
+the brand region, and `.tool-brand > .tool-by` has to be excised on the target side too —
+see *Removed from the clone* above.
 
 ### Fidelity bug found during visual QA
 

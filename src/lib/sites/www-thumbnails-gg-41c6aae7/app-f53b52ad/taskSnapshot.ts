@@ -3,6 +3,7 @@
 import type { TaskRecord } from "@/types/tasks";
 import type { Competitor, FeedState } from "@/types/thumbnails-app";
 
+import { DEFAULT_CARD_CHANNEL, DEFAULT_CARD_TITLE } from "./store";
 import { blobUrl, newId, storeObjectUrl } from "./taskDb";
 
 /** State the tester owns that belongs in a saved task. */
@@ -31,7 +32,7 @@ const isBlobUrl = (s: string | null): s is string =>
 /** A readable default name, so the library isn't a wall of "Untitled". */
 export function defaultTaskName(title: string): string {
   const t = title.trim();
-  if (!t || t === "Your Title Goes Here") return "Untitled test";
+  if (!t || t === DEFAULT_CARD_TITLE) return "Untitled test";
   return t.length > 48 ? `${t.slice(0, 47)}…` : t;
 }
 
@@ -85,6 +86,8 @@ export async function toTaskRecord(
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     coverBlobId,
+    // Publishing is tracked separately from editing; carry it through untouched.
+    share: existing?.share ?? null,
     card: {
       imageBlobId,
       imageFit: snap.testCard.imageFit,
@@ -125,21 +128,33 @@ export async function toTaskRecord(
   };
 }
 
-/** Rehydrates a saved task into store state, minting object URLs for its blobs. */
-export async function fromTaskRecord(task: TaskRecord): Promise<FeedSnapshot> {
+/** Turns an image reference into something an `<img>` can load. */
+export type ImageResolver = (blobId: string) => Promise<string | null>;
+
+/**
+ * Rehydrates a saved task into store state.
+ *
+ * The resolver decides where images come from: object URLs minted from
+ * IndexedDB for the author's own tests, or `/api/share/...` URLs when the same
+ * record arrives over the wire as a shared test.
+ */
+export async function fromTaskRecord(
+  task: Omit<TaskRecord, "id" | "share">,
+  resolve: ImageResolver = blobUrl,
+): Promise<FeedSnapshot> {
   const imageSrc = task.card.imageBlobId
-    ? await blobUrl(task.card.imageBlobId)
+    ? await resolve(task.card.imageBlobId)
     : null;
 
   const channelAvatarSrc = task.card.channelAvatar
     ? task.card.channelAvatarIsBlob
-      ? await blobUrl(task.card.channelAvatar)
+      ? await resolve(task.card.channelAvatar)
       : task.card.channelAvatar
     : null;
 
   const thumbnails = [];
   for (const t of task.thumbnails) {
-    const src = await blobUrl(t.blobId);
+    const src = await resolve(t.blobId);
     if (src) thumbnails.push({ id: t.id, src, enabled: t.enabled });
   }
 
@@ -195,7 +210,7 @@ export function isWorthSaving(snap: FeedSnapshot): boolean {
     snap.thumbnails.length > 0 ||
     snap.titles.length > 0 ||
     snap.competitors.length > 0 ||
-    snap.testCard.title !== "Your Title Goes Here" ||
-    snap.testCard.channelName !== "mattos"
+    snap.testCard.title !== DEFAULT_CARD_TITLE ||
+    snap.testCard.channelName !== DEFAULT_CARD_CHANNEL
   );
 }

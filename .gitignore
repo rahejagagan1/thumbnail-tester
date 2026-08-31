@@ -50,3 +50,6 @@ temp/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Shared tests written by the share API (server-side, not source)
+.data/

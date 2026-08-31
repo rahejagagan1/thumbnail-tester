@@ -1,3 +1,4 @@
+import type { ShareInfo } from "./share";
 import type {
   Columns,
   FeedSource,
@@ -24,6 +25,12 @@ export interface TaskRecord {
 
   /** Blob id for the card shown in the library grid. */
   coverBlobId: string | null;
+
+  /**
+   * Set once the test has been published with a link. Holds the revoke secret,
+   * so it is stripped before the task is uploaded.
+   */
+  share: ShareInfo | null;
 
   card: {
     imageBlobId: string | null;
@@ -78,6 +85,8 @@ export interface TaskSummary {
   createdAt: number;
   updatedAt: number;
   coverBlobId: string | null;
+  /** Present when this test currently has a live share link. */
+  shareId: string | null;
   title: string;
   channelName: string;
   viewMode: ViewMode;

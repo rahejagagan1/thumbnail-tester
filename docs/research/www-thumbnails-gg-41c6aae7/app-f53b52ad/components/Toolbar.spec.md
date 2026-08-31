@@ -5,6 +5,11 @@
 - **Source page:** https://www.thumbnails.gg/app
 - **Interaction model:** click-driven (two popovers, one segmented control, three icon buttons)
 
+> **Deliberate divergence:** the `span.tool-by` author credit quoted verbatim below
+> (`by <handle>`, linking to an X profile) has been **removed** from our build at the
+> user's request. The quoted source is left intact as evidence of what the target
+> renders — do not restore the credit when working from it. See `EXTENSIONS.md`.
+
 ## Exact CSS (verbatim from the target's stylesheet)
 
 These rules are ALREADY PRESENT in `src/app/globals.css` — the site's stylesheet was
