@@ -9,6 +9,8 @@ import {
   type CardViewModel,
   type FlashState,
   type PoolVideo,
+  type TestMode,
+  type TitleVariant,
 } from "@/types/thumbnails-app";
 
 import {
@@ -59,6 +61,33 @@ export function useVideoPool(): PoolVideo[] {
  */
 /** Badge letters for multi-variant tests; more than this and letters stop helping. */
 const VARIANT_LABELS = "ABCDEFGH".split("");
+
+/** Id of the test card in single-thumbnail mode; the prefix of every variant's. */
+export const TEST_CARD_ID = "__test__";
+
+/** The key a card's title was drawn with: its thumbnail variant, or the card itself. */
+function titleKey(cardId: string): string {
+  return cardId === TEST_CARD_ID ? TEST_CARD_ID : cardId.slice(TEST_CARD_ID.length);
+}
+
+/**
+ * The title variant a test card is showing, or null when the single title is
+ * in use.
+ *
+ * Exported so an editor writing back to an inspected card patches the variant
+ * the feed actually drew, instead of guessing by matching the text it reads.
+ */
+export function titleVariantForCard(
+  cardId: string,
+  titleMode: TestMode,
+  titles: TitleVariant[],
+  seed: number,
+): TitleVariant | null {
+  if (titleMode !== "multiple") return null;
+  const active = titles.filter((t) => t.enabled);
+  if (active.length === 0) return null;
+  return active[hashString(`title${seed}_${titleKey(cardId)}`) % active.length];
+}
 
 export function useFeedCards(
   pool: PoolVideo[],
@@ -124,14 +153,9 @@ export function useFeedCards(
       isTest: true as const,
     };
 
-    const activeTitles =
-      feed.titleMode === "multiple" ? feed.titles.filter((t) => t.enabled) : [];
-    const titleFor = (key: string) =>
-      activeTitles.length
-        ? activeTitles[
-            hashString(`title${feed.seed}_${key}`) % activeTitles.length
-          ].text
-        : testCard.title;
+    const titleFor = (cardId: string) =>
+      titleVariantForCard(cardId, feed.titleMode, feed.titles, feed.seed)?.text ??
+      testCard.title;
 
     let mine: CardViewModel[];
     if (feed.thumbMode === "multiple") {
@@ -139,9 +163,9 @@ export function useFeedCards(
         feed.thumbnails.length === 0
           ? [
               {
-                id: "__test__",
+                id: TEST_CARD_ID,
                 thumb: PLACEHOLDER_THUMB,
-                title: titleFor("__test__"),
+                title: titleFor(TEST_CARD_ID),
                 isPlaceholder: true,
                 ...shared,
               },
@@ -152,9 +176,9 @@ export function useFeedCards(
               // indistinguishable — the whole point is telling them apart.
               const labelled = active.length > 1;
               return active.map((t, i) => ({
-                id: `__test__${t.id}`,
+                id: `${TEST_CARD_ID}${t.id}`,
                 thumb: t.src,
-                title: titleFor(t.id),
+                title: titleFor(`${TEST_CARD_ID}${t.id}`),
                 label: labelled ? VARIANT_LABELS[i] : undefined,
                 ...shared,
               }));
@@ -162,9 +186,9 @@ export function useFeedCards(
     } else {
       mine = [
         {
-          id: "__test__",
+          id: TEST_CARD_ID,
           thumb: testCard.imageSrc ?? PLACEHOLDER_THUMB,
-          title: titleFor("__test__"),
+          title: titleFor(TEST_CARD_ID),
           isPlaceholder: !testCard.imageSrc,
           ...shared,
         },

@@ -294,6 +294,64 @@ author's own like is unaffected. Plus the API's rejection cases. 20/20 passing.
 
 ---
 
+## 6. Retitling from the inspect panel (added)
+
+The inspect panel showed the title and the channel name as dead text: changing either
+meant closing the panel, finding the field in the editor, and reopening. Both are now
+editable where they are read.
+
+### The affordance
+
+A pencil button sits after each line, and the text itself is clickable. Clicking either
+swaps the line for a field — a two-row textarea for the title, an input for the channel —
+sized and coloured like the text it replaces, so the panel does not jump. Enter or Escape
+closes it; so does clicking away. Both are in `EditableText` (`InspectModal.tsx`).
+
+Edits are written through on every keystroke, the way the editor panel's fields are. That
+is what makes the panel worth typing in: the exportable card, the three "at feed size"
+previews and the feed behind the scrim all move with the text.
+
+### Which title an edit belongs to
+
+`inspect` holds the view model captured when the card was clicked — a snapshot, so an
+edit written to the store would leave the panel showing its own stale copy. The panel now
+reads the title and channel live from the store for a test card and keeps the snapshot for
+everything else.
+
+In multiple-titles mode the card is not showing `testCard.title` at all; it is showing one
+variant, picked by hashing the seed with the card's key. An edit has to land on that
+variant, so the picker moved out of `useFeedCards`'s memo into an exported
+`titleVariantForCard(cardId, titleMode, titles, seed)` that both the feed builder and the
+panel call. Matching the variant by its text instead would break on two variants with the
+same words.
+
+The channel name is shared by every variant, so it always writes to `testCard`.
+
+### Not on a shared link
+
+`InspectModal` takes `editable`, and `SharedTaskView` passes `editable={false}`. A
+reviewer opening someone else's link inspects the card and leaves feedback; the test
+itself stays the author's. Competitor cards are never editable either — they are fetched
+video data with nowhere to write back to.
+
+### Verification
+
+`npm run test:e2e:inspect` — uploads a thumbnail, retitles and renames the channel from
+the panel, and checks the text reaches the exportable card, the feed card and the editor
+panel's own fields; switches to multiple titles and checks the edit lands on the drawn
+variant while the single title is left alone; then publishes and checks a viewer of the
+shared link gets no edit buttons. 18/18 passing.
+
+### Noticed while testing, not fixed
+
+`Field` (`EditorPanel.tsx`) wraps its control in a `<label>`. A `button` is labelable, so
+in a `Field` containing a `Seg` the first segment takes the field's label as its
+accessible name: the "Single" button announces as "Mode test one or many Multiple" and is
+unreachable by its own name. Pre-existing, and outside this change — the e2e script
+selects those segments by class with a comment saying why.
+
+---
+
 ## Corrected against YouTube
 
 ### Feed column count (changed)
@@ -331,12 +389,32 @@ and tight crops. `autoColumns` in `useInfiniteScroll.ts` now divides by
 | 1700 | 5 | 5 |
 | 2000 | 6 | 5 |
 
-The manual `3`/`4`/`5` column options are unaffected; this only changes `Auto`.
+Those "ours" figures are the YouTube rule alone; four is now the ceiling on top of it —
+see *Four cards per row, maximum* below.
 
 A pinned count overrides the window width *and* the guide rail, which from the feed alone
 looks identical to a layout bug — it was mistaken for one. Layout now labels the hint
 `pinned — ignores width` and spells out underneath that resizing and collapsing the guide
 will not change it, with Auto named as the way back.
+
+### Four cards per row, maximum (changed)
+
+`autoColumns` clamps at `MAX_COLUMNS = 4`, and the pinned options are `Auto / 3 / 4`. The
+`5` button is gone.
+
+YouTube keeps going past four — six across on a 2560px screen — so this is a deliberate
+break with the target rather than a fidelity fix. The reason is what the tool is for: a
+thumbnail judged five-across is smaller than it will ever be in a real feed, so small text
+and tight crops look better in the test than they will in life. Four is where a card is
+still big enough to judge.
+
+It is one ceiling in one function, so the tester and a shared link inherit it together —
+both surfaces render through `autoColumns`. `fromTaskRecord` clamps as well: tests saved
+while `5` was on offer, and links published then, would otherwise reinstate a count the
+app no longer allows.
+
+The width readout in the Columns field keeps reporting honestly — a 2080px feed reads
+`2080px → 4`, not a made-up number.
 
 ### The guide rail counts
 

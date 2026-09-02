@@ -40,7 +40,7 @@ const probe = () => {
 };
 
 /** The rule the app implements, restated here so the harness is independent. */
-const expected = (w) => Math.max(1, Math.min(6, Math.floor((w + 16) / 342.8)));
+const expected = (w) => Math.max(1, Math.min(4, Math.floor((w + 16) / 342.8)));
 
 (async () => {
   const browser = await chromium.launch();
@@ -146,6 +146,42 @@ const expected = (w) => Math.max(1, Math.min(6, Math.floor((w + 16) / 342.8)));
     `${backToAuto.contentWidth}px -> ${backToAuto.inFirstRow}`);
   check('the warning goes away with Auto',
     (await page.locator('text=The feed is locked to').count()) === 0);
+
+  // ---------- Auto shows its working ----------
+  // A count that will not move on a maximized window reads as broken, so Auto
+  // states the width it measured and the number that falls out of it.
+  const readout = async () => {
+    const text = await page.locator('label', { hasText: 'Columns' }).first().innerText();
+    const m = /(\d+)px\s*→\s*(\d+)/.exec(text);
+    return m ? { width: Number(m[1]), cols: Number(m[2]) } : null;
+  };
+  const shown = await readout();
+  check('Auto shows the width it measured', shown !== null, JSON.stringify(shown));
+  check('the readout matches the grid',
+    shown && shown.width === backToAuto.contentWidth && shown.cols === backToAuto.inFirstRow,
+    `panel=${JSON.stringify(shown)} grid=${backToAuto.contentWidth}px -> ${backToAuto.inFirstRow}`);
+
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await page.waitForTimeout(800);
+  const widened = await readout();
+  const widenedGrid = await page.evaluate(probe);
+  check('the readout follows a resize',
+    widened && widened.width === widenedGrid.contentWidth && widened.cols === widenedGrid.inFirstRow,
+    `panel=${JSON.stringify(widened)} grid=${widenedGrid.contentWidth}px -> ${widenedGrid.inFirstRow}`);
+
+  // ---------- four is the ceiling ----------
+  // Wide enough for six by YouTube's own maths; the cap has to hold anyway,
+  // and the pinned options must not offer a fifth.
+  await page.setViewportSize({ width: 2560, height: 900 });
+  await page.waitForTimeout(900);
+  const widest = await page.evaluate(probe);
+  check('never more than 4 cards, however wide', widest.inFirstRow === 4,
+    `${widest.contentWidth}px -> ${widest.inFirstRow}`);
+  const segLabels = await page.locator('label', { hasText: 'Columns' }).first()
+    .locator('.seg-btn').allInnerTexts();
+  check('the Columns options stop at 4',
+    JSON.stringify(segLabels.map(t => t.trim())) === '["Auto","3","4"]',
+    JSON.stringify(segLabels));
 
   const real = errors.filter(e => !/favicon|DevTools|404/i.test(e));
   check('no console/page errors', real.length === 0, real.slice(0, 2).join(' | '));

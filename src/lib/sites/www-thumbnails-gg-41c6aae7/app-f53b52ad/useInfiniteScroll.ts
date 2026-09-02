@@ -67,9 +67,23 @@ export function useInfiniteScroll<T>(
 const YT_ITEM_MIN_WIDTH = 326.8;
 const YT_ITEM_MARGIN = 16;
 
+/** Grid width one more column costs, rounded for display. */
+export const AUTO_COLUMN_STEP = Math.round(YT_ITEM_MIN_WIDTH + YT_ITEM_MARGIN);
+
+/**
+ * Cards per row never goes above this, however wide the window gets. YouTube
+ * itself keeps growing (6 across on a 2560px screen), but a thumbnail is being
+ * judged here, and past four they are too small to judge. Applies to the
+ * tester and to a shared link alike — both render through this.
+ */
+export const MAX_COLUMNS = 4;
+
 /** Desktop grid auto-column count from container width. */
 export function autoColumns(width: number): number {
-  if (width <= 0) return 4;
+  if (width <= 0) return MAX_COLUMNS;
   const perColumn = YT_ITEM_MIN_WIDTH + YT_ITEM_MARGIN;
-  return Math.max(1, Math.min(6, Math.floor((width + YT_ITEM_MARGIN) / perColumn)));
+  return Math.max(
+    1,
+    Math.min(MAX_COLUMNS, Math.floor((width + YT_ITEM_MARGIN) / perColumn)),
+  );
 }

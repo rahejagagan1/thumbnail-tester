@@ -5,6 +5,7 @@ import type { Competitor, FeedState } from "@/types/thumbnails-app";
 
 import { DEFAULT_CARD_CHANNEL, DEFAULT_CARD_TITLE } from "./store";
 import { blobUrl, newId, storeObjectUrl } from "./taskDb";
+import { MAX_COLUMNS } from "./useInfiniteScroll";
 
 /** State the tester owns that belongs in a saved task. */
 export type FeedSnapshot = Pick<
@@ -200,7 +201,9 @@ export async function fromTaskRecord(
     feedback: task.feedback ?? {},
     theme: task.theme,
     viewMode: task.viewMode,
-    columns: task.columns,
+    // Tests saved when 5 was on offer, and shared links published then, would
+    // otherwise reinstate a count the app no longer allows.
+    columns: task.columns === "auto" || task.columns <= MAX_COLUMNS ? task.columns : MAX_COLUMNS,
     blur: task.blur,
     grayscale: task.grayscale,
     showSafeAreaOverlay: task.showSafeAreaOverlay,

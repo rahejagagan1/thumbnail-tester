@@ -21,7 +21,12 @@ export interface PoolVideo {
 export type ImageFit = "cover" | "contain";
 export type ViewMode = "desktop" | "mobile" | "watch";
 export type Theme = "dark" | "light";
-export type Columns = "auto" | 3 | 4 | 5;
+/**
+ * Cards per row. Four is the ceiling, pinned or automatic: a thumbnail shown
+ * five-across is narrower than it will ever be on a YouTube feed, which
+ * flatters small text and tight crops — the opposite of what a tester is for.
+ */
+export type Columns = "auto" | 3 | 4;
 /**
  * Where the test cards sit in the feed. `manual` is ours, not the target's: it
  * means the user has dragged at least one card and their positions win.
@@ -189,6 +194,13 @@ export interface FeedState {
   theme: Theme;
   viewMode: ViewMode;
   columns: Columns;
+  /**
+   * What the desktop grid last measured itself as: its content width, and the
+   * column count `autoColumns` derives from it. Published by the surface so the
+   * editor can show why Auto settled where it did — a count that will not budge
+   * on a maximized window otherwise looks broken. Not part of a saved task.
+   */
+  gridMetrics: { width: number; autoCols: number } | null;
   placement: Placement;
   seed: number;
   blur: number;
@@ -242,6 +254,7 @@ export interface FeedState {
   toggleTitle: (id: string) => void;
   removeTitle: (id: string) => void;
   setColumns: (c: Columns) => void;
+  setGridMetrics: (m: { width: number; autoCols: number }) => void;
   setPlacement: (p: Placement) => void;
   /** Drops a test card at `index` in the feed and switches to manual placement. */
   moveCardTo: (cardId: string, index: number) => void;

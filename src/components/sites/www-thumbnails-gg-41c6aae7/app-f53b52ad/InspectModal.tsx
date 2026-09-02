@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { toPng } from "html-to-image";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
+import { titleVariantForCard } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useFeedCards";
 import { genThumb, monogramColor } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import {
   IconKebab,
@@ -89,9 +90,19 @@ async function copyImageToClipboard(src: string): Promise<boolean> {
   }
 }
 
-export function InspectModal() {
-  const card = useFeed((s) => s.inspect);
+/**
+ * @param editable Whether the inspected test card can be retitled here. False
+ *   on a shared link, where the viewer is reading someone else's test.
+ */
+export function InspectModal({ editable = true }: { editable?: boolean } = {}) {
+  const inspect = useFeed((s) => s.inspect);
   const setInspect = useFeed((s) => s.setInspect);
+  const testCard = useFeed((s) => s.testCard);
+  const titleMode = useFeed((s) => s.titleMode);
+  const titles = useFeed((s) => s.titles);
+  const seed = useFeed((s) => s.seed);
+  const updateTestCard = useFeed((s) => s.updateTestCard);
+  const updateTitle = useFeed((s) => s.updateTitle);
 
   const [blurAmount, setBlurAmount] = useState(0);
   const [grayscale, setGrayscale] = useState(false);
@@ -101,6 +112,21 @@ export function InspectModal() {
   const [swatches, setSwatches] = useState<string[]>([]);
   const [cardTheme, setCardTheme] = useState<Theme>("dark");
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // `inspect` is the snapshot taken when the card was clicked. For a test card
+  // the title and channel are editable from here, so those two are read live
+  // from the store instead — otherwise the panel, the exportable card and the
+  // feed-size previews would all keep showing the pre-edit text.
+  const titleVariant = inspect?.isTest
+    ? titleVariantForCard(inspect.id, titleMode, titles, seed)
+    : null;
+  const card = inspect?.isTest
+    ? {
+        ...inspect,
+        title: titleVariant?.text ?? testCard.title,
+        channel: testCard.channelName,
+      }
+    : inspect;
 
   const thumbSrc = card ? (card.thumb ?? genThumb(card.id, card.title)) : "";
 
@@ -162,6 +188,15 @@ export function InspectModal() {
   }, [thumbSrc]);
 
   if (!card) return null;
+
+  const canEdit = editable && card.isTest;
+
+  // In multiple-titles mode the card shows one variant from the list, so the
+  // edit belongs to that variant; otherwise it is the test card's own title.
+  const writeTitle = (text: string) => {
+    if (titleVariant) updateTitle(titleVariant.id, text);
+    else updateTestCard({ title: text });
+  };
 
   const youtubeId = extractYouTubeId(card.thumb, card.isTest);
 
@@ -308,10 +343,32 @@ export function InspectModal() {
               <div className="inspect-eyebrow" style={{ marginBottom: 8 }}>
                 {card.isTest ? "Your thumbnail" : "Competitor"}
               </div>
-              <h2 className="inspect-title">{card.title}</h2>
+              {canEdit ? (
+                <EditableText
+                  value={card.title}
+                  onChange={writeTitle}
+                  label="title"
+                  multiline
+                  textStyle={TITLE_TEXT_STYLE}
+                />
+              ) : (
+                <h2 className="inspect-title">{card.title}</h2>
+              )}
               <div className="inspect-meta">
-                {card.channel}
-                {card.verified ? " · verified" : ""}
+                {canEdit ? (
+                  <EditableText
+                    value={card.channel}
+                    onChange={(text) => updateTestCard({ channelName: text })}
+                    label="channel name"
+                    textStyle={CHANNEL_TEXT_STYLE}
+                    suffix={card.verified ? " · verified" : ""}
+                  />
+                ) : (
+                  <>
+                    {card.channel}
+                    {card.verified ? " · verified" : ""}
+                  </>
+                )}
               </div>
               <div className="inspect-meta">
                 {card.views} · {card.age}
@@ -441,6 +498,155 @@ export function InspectModal() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** `.inspect-title` as a plain object, so the editor field matches the heading. */
+const TITLE_TEXT_STYLE: CSSProperties = {
+  fontSize: 19,
+  fontWeight: 600,
+  lineHeight: 1.25,
+  letterSpacing: "-0.01em",
+  color: "var(--text-primary)",
+};
+
+/** Matches `.inspect-meta`. */
+const CHANNEL_TEXT_STYLE: CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.5,
+  color: "var(--text-secondary)",
+};
+
+function IconPencil() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 20h4L19 9a2.1 2.1 0 10-3-3L5 17v3z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * A line of the panel's header that can be rewritten in place.
+ *
+ * Edits are written straight through on every keystroke, the way the editor
+ * panel's fields are, so the exportable card and the feed-size previews track
+ * what is being typed.
+ */
+function EditableText({
+  value,
+  onChange,
+  label,
+  textStyle,
+  multiline = false,
+  suffix = "",
+}: {
+  value: string;
+  onChange: (text: string) => void;
+  /** Named in the control's accessible label: "Edit title". */
+  label: string;
+  textStyle: CSSProperties;
+  multiline?: boolean;
+  /** Trailing text that is not part of the edited value (" · verified"). */
+  suffix?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  const fieldStyle: CSSProperties = {
+    ...textStyle,
+    display: "block",
+    width: "100%",
+    margin: 0,
+    padding: "5px 8px",
+    borderRadius: 8,
+    background: "var(--bg-sunken)",
+    border: "1px solid var(--border-default)",
+    fontFamily: "inherit",
+    outline: "none",
+  };
+
+  // Enter is "done" rather than a newline: a YouTube title is one line of text,
+  // and Escape backs out the same way. Neither key does anything else here.
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === "Escape") {
+      e.preventDefault();
+      setEditing(false);
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: multiline ? 8 : 0 }}>
+      {editing ? (
+        multiline ? (
+          <textarea
+            // Focus follows the click that opened the field; blur closes it.
+            autoFocus
+            rows={2}
+            className="focus-ring"
+            aria-label={`Edit ${label}`}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={(e) => e.currentTarget.setSelectionRange(value.length, value.length)}
+            onBlur={() => setEditing(false)}
+            onKeyDown={onKeyDown}
+            style={{ ...fieldStyle, resize: "vertical" }}
+          />
+        ) : (
+          <input
+            autoFocus
+            className="focus-ring"
+            aria-label={`Edit ${label}`}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={(e) => e.currentTarget.setSelectionRange(value.length, value.length)}
+            onBlur={() => setEditing(false)}
+            onKeyDown={onKeyDown}
+            style={fieldStyle}
+          />
+        )
+      ) : (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, minWidth: 0 }}>
+          <span
+            onClick={() => setEditing(true)}
+            style={{ ...textStyle, cursor: "text", minWidth: 0, wordBreak: "break-word" }}
+          >
+            {value.trim() === "" ? (
+              <span style={{ color: "var(--text-faint)" }}>Add a {label}</span>
+            ) : (
+              value
+            )}
+            {suffix}
+          </span>
+          <button
+            onClick={() => setEditing(true)}
+            className="focus-ring"
+            aria-label={`Edit ${label}`}
+            title={`Edit ${label}`}
+            style={{
+              flexShrink: 0,
+              display: "grid",
+              placeItems: "center",
+              width: 22,
+              height: 22,
+              marginTop: 1,
+              borderRadius: 6,
+              border: "1px solid var(--border-default)",
+              background: "transparent",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <IconPencil />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

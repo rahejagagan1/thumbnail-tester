@@ -40,6 +40,7 @@ export const useFeed = create<FeedState>((set) => ({
   theme: "dark",
   viewMode: "desktop",
   columns: "auto",
+  gridMetrics: null,
   placement: "first",
   slots: {},
   feedback: {},
@@ -120,6 +121,14 @@ export const useFeed = create<FeedState>((set) => ({
     set((s) => ({ titles: s.titles.filter((t) => t.id !== id) })),
 
   setColumns: (columns) => set({ columns }),
+  // Same numbers in, same object out: the observer re-measures on every layout
+  // change, and a fresh object each time would re-render the editor for nothing.
+  setGridMetrics: (m) =>
+    set((s) =>
+      s.gridMetrics?.width === m.width && s.gridMetrics.autoCols === m.autoCols
+        ? {}
+        : { gridMetrics: m },
+    ),
   // Leaving manual placement throws the dragged positions away: keeping them
   // around would make "First" and "Random" silently ignore a later drag.
   setPlacement: (placement) =>

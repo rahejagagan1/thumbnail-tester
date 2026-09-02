@@ -5,6 +5,7 @@ import type { CSSProperties, InputHTMLAttributes, ReactNode } from "react";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 import { AGE_OPTIONS } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import type { Columns } from "@/types/thumbnails-app";
+import { AUTO_COLUMN_STEP } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useInfiniteScroll";
 import { CompetitorsSection } from "./CompetitorsSection";
 
 /** Line-wrap estimate for the target's fixed-width thumbnail title box (~26 chars/line). */
@@ -1106,20 +1107,37 @@ export function EditorPanel() {
             label="Columns"
             hint={
               feed.columns === "auto"
-                ? "auto (responsive)"
+                ? feed.gridMetrics
+                  ? `${feed.gridMetrics.width}px → ${feed.gridMetrics.autoCols}`
+                  : "auto (responsive)"
                 : "pinned — ignores width"
             }
           >
             <Seg
-              value={String(feed.columns) as "auto" | "3" | "4" | "5"}
+              value={String(feed.columns) as "auto" | "3" | "4"}
               onChange={(v) => feed.setColumns(v === "auto" ? "auto" : (Number(v) as Columns))}
               options={[
                 { value: "auto", label: "Auto" },
                 { value: "3", label: "3" },
                 { value: "4", label: "4" },
-                { value: "5", label: "5" },
               ]}
             />
+            {feed.columns === "auto" && (
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  color: "var(--text-faint)",
+                }}
+              >
+                Measured from the feed itself, not the window: this panel and
+                the guide rail take about 430px off it, so the count sits below
+                what youtube.com shows at the same window size. A column is
+                worth {AUTO_COLUMN_STEP}px — hide the guide (☰) or collapse
+                this panel to gain one.
+              </p>
+            )}
             {feed.columns !== "auto" && (
               <p
                 style={{

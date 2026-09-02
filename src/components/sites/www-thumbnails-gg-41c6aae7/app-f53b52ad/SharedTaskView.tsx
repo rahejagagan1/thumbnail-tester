@@ -312,7 +312,7 @@ export function SharedTaskView({ share }: { share: SharedTask }) {
             )}
           </div>
         </div>
-        <InspectModal />
+        <InspectModal editable={false} />
       </div>
     </div>
   );
