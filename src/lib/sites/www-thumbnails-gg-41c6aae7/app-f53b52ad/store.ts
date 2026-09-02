@@ -1,7 +1,9 @@
 "use client";
 
 import { create } from "zustand";
-import type { FeedState, TestCard } from "@/types/thumbnails-app";
+import type { CardFeedback, FeedState, TestCard } from "@/types/thumbnails-app";
+
+const EMPTY_FEEDBACK: CardFeedback = { likes: [], comments: [] };
 
 function uid(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID
@@ -39,6 +41,13 @@ export const useFeed = create<FeedState>((set) => ({
   viewMode: "desktop",
   columns: "auto",
   placement: "first",
+  slots: {},
+  feedback: {},
+  guideDefault: false,
+  guideOpen: null,
+  // Overwritten on a shared page, where each viewer gets their own id.
+  viewerId: "author",
+  viewerName: "You",
   seed: 1,
   blur: 0,
   grayscale: false,
@@ -111,7 +120,74 @@ export const useFeed = create<FeedState>((set) => ({
     set((s) => ({ titles: s.titles.filter((t) => t.id !== id) })),
 
   setColumns: (columns) => set({ columns }),
-  setPlacement: (placement) => set({ placement }),
+  // Leaving manual placement throws the dragged positions away: keeping them
+  // around would make "First" and "Random" silently ignore a later drag.
+  setPlacement: (placement) =>
+    set(placement === "manual" ? { placement } : { placement, slots: {} }),
+
+  moveCardTo: (cardId, index) =>
+    set((s) => ({
+      placement: "manual",
+      slots: { ...s.slots, [cardId]: Math.max(0, index) },
+    })),
+  clearSlots: () => set({ slots: {}, placement: "first" }),
+
+  // A changed default means the surface itself moved (the editor opened, say),
+  // so an earlier click of the menu button no longer describes what the viewer
+  // wants and is dropped rather than fighting it.
+  setGuideDefault: (guideDefault) =>
+    set((s) =>
+      s.guideDefault === guideDefault ? {} : { guideDefault, guideOpen: null },
+    ),
+  toggleGuide: () =>
+    set((s) => ({ guideOpen: !(s.guideOpen ?? s.guideDefault) })),
+
+  setViewer: (viewerId, viewerName) => set({ viewerId, viewerName }),
+
+  toggleLike: (cardId) =>
+    set((s) => {
+      const cur = s.feedback[cardId] ?? EMPTY_FEEDBACK;
+      const liked = cur.likes.includes(s.viewerId);
+      const next: CardFeedback = {
+        ...cur,
+        likes: liked
+          ? cur.likes.filter((v) => v !== s.viewerId)
+          : [...cur.likes, s.viewerId],
+      };
+      s.feedbackSink?.(cardId, next);
+      return { feedback: { ...s.feedback, [cardId]: next } };
+    }),
+
+  addComment: (cardId, text) =>
+    set((s) => {
+      const body = text.trim();
+      if (!body) return {};
+      const cur = s.feedback[cardId] ?? EMPTY_FEEDBACK;
+      const next: CardFeedback = {
+        ...cur,
+        comments: [
+          ...cur.comments,
+          { id: uid(), text: body.slice(0, 600), at: Date.now(), author: s.viewerName },
+        ],
+      };
+      s.feedbackSink?.(cardId, next);
+      return { feedback: { ...s.feedback, [cardId]: next } };
+    }),
+
+  removeComment: (cardId, commentId) =>
+    set((s) => {
+      const cur = s.feedback[cardId];
+      if (!cur) return {};
+      const next: CardFeedback = {
+        ...cur,
+        comments: cur.comments.filter((c) => c.id !== commentId),
+      };
+      s.feedbackSink?.(cardId, next);
+      return { feedback: { ...s.feedback, [cardId]: next } };
+    }),
+
+  feedbackSink: null,
+  setFeedbackSink: (feedbackSink) => set({ feedbackSink }),
   reshuffle: () => set({ seed: Math.floor(1e9 * Math.random()) + 1 }),
   setBlur: (blur) => set({ blur }),
   setGrayscale: (grayscale) => set({ grayscale }),
@@ -130,6 +206,8 @@ export const useFeed = create<FeedState>((set) => ({
       titleMode: "single",
       titles: [],
       placement: "first",
+      slots: {},
+      feedback: {},
       theme: "dark",
       viewMode: "desktop",
       columns: "auto",

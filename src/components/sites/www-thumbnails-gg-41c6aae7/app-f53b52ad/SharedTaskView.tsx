@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -10,7 +10,9 @@ import { MobileView } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f5
 import { TSeg, Wordmark } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/Toolbar";
 import { WatchView } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/WatchView";
 import {
+  getViewerName,
   importSharedTask,
+  setViewerName,
   shareAssetUrl,
 } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/shareClient";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
@@ -19,8 +21,11 @@ import {
   useFeedCards,
   useVideoPool,
 } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useFeedCards";
+import { useShareFeedback } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useShareFeedback";
 import type { SharedTask } from "@/types/share";
 import type { ViewMode } from "@/types/thumbnails-app";
+
+const subscribeNever = () => () => {};
 
 const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
   { value: "desktop", label: "Desktop" },
@@ -75,6 +80,19 @@ export function SharedTaskView({ share }: { share: SharedTask }) {
 
   const pool = useVideoPool();
   const { cards, activePool } = useFeedCards(pool);
+
+  // Reviewing is the point of opening someone else's link: likes and comments
+  // left here go back to the share, where the author will see them.
+  // Same browser-only-read idiom the tester uses for its task id: reading
+  // localStorage during render would not match the server-rendered markup.
+  const storedName = useSyncExternalStore(
+    subscribeNever,
+    () => getViewerName("Guest"),
+    () => "Guest",
+  );
+  const [typedName, setTypedName] = useState<string | null>(null);
+  const name = typedName ?? storedName;
+  useShareFeedback(share.shareId, name);
 
   // Load the shared test into the store, resolving its images to the share's
   // asset endpoint rather than to this browser's IndexedDB.
@@ -181,6 +199,29 @@ export function SharedTaskView({ share }: { share: SharedTask }) {
             >
               {isDark ? <IconMoon /> : <IconSun />}
             </button>
+            <input
+              value={name}
+              onChange={(e) => {
+                setTypedName(e.target.value);
+                setViewerName(e.target.value);
+              }}
+              placeholder="Your name"
+              aria-label="Your name, shown on comments you leave"
+              maxLength={40}
+              className="focus-ring"
+              style={{
+                width: 116,
+                height: 26,
+                padding: "0 9px",
+                borderRadius: 999,
+                background: "var(--bg-sunken)",
+                border: "1px solid var(--border-default)",
+                color: "var(--text-secondary)",
+                font: "inherit",
+                fontSize: 11.5,
+                outline: "none",
+              }}
+            />
             <button type="button" className="tbtn focus-ring" onClick={copyLink}>
               {copied ? "Copied" : "Copy link"}
             </button>

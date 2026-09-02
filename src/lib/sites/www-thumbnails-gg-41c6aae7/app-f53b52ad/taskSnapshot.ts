@@ -15,6 +15,8 @@ export type FeedSnapshot = Pick<
   | "titleMode"
   | "titles"
   | "placement"
+  | "slots"
+  | "feedback"
   | "theme"
   | "viewMode"
   | "columns"
@@ -107,6 +109,8 @@ export async function toTaskRecord(
     titleMode: snap.titleMode,
     titles: snap.titles,
     placement: snap.placement,
+    slots: snap.slots,
+    feedback: snap.feedback,
     theme: snap.theme,
     viewMode: snap.viewMode,
     columns: snap.columns,
@@ -191,6 +195,9 @@ export async function fromTaskRecord(
     titleMode: task.titleMode,
     titles: task.titles,
     placement: task.placement,
+    // Saved before drag-to-place existed: fall back to no manual slots.
+    slots: task.slots ?? {},
+    feedback: task.feedback ?? {},
     theme: task.theme,
     viewMode: task.viewMode,
     columns: task.columns,

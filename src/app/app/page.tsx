@@ -15,11 +15,13 @@ import { InspectModal } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-
 import { MobileView } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/MobileView";
 import { Toolbar } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/Toolbar";
 import { WatchView } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/WatchView";
+import { getTask } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/taskDb";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 import {
   useFeedCards,
   useVideoPool,
 } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useFeedCards";
+import { useShareFeedback } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useShareFeedback";
 import { useTaskAutosave } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useTaskAutosave";
 import { INITIAL_FLASH, type FlashState } from "@/types/thumbnails-app";
 
@@ -47,6 +49,22 @@ export default function ThumbnailTesterPage() {
   } = useTaskAutosave(taskId);
 
   const feed = useFeed();
+
+  // If this test has been shared, its reactions live on the server alongside
+  // the reviewers' — pull them in so the author sees the same pool.
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [shareRev, setShareRev] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const lookup = savedTaskId ? getTask(savedTaskId) : Promise.resolve(null);
+    void lookup.then((t) => {
+      if (alive) setShareId(t?.share?.id ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [savedTaskId, shareRev]);
+  useShareFeedback(shareId, "You");
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +114,7 @@ export default function ThumbnailTesterPage() {
           onRename={rename}
           taskId={savedTaskId}
           onBeforeShare={saveNow}
+          onShareChanged={() => setShareRev((n) => n + 1)}
           targetRef={previewRef}
           onFlash={() =>
             setFlash((f) => ({

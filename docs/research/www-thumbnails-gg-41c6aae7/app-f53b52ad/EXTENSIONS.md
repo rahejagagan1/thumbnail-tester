@@ -162,6 +162,206 @@ library detects this and says so rather than silently losing work.
 
 ---
 
+## 4. Comparing several thumbnails, and placing them by hand (added)
+
+**Why:** the target already had a Multiple thumbnail mode, but with three or four
+variants in the feed every card looked identical — same title, same channel, same
+everything — so you could not say which one you were reacting to. And the only choices
+for where they sat were *all at the front* or *scattered at random*.
+
+### Variant badges
+
+In `Multiple` mode each enabled thumbnail becomes its own card, as before. When more
+than one is enabled the cards now carry an **A / B / C…** badge (`.yt-variant-badge`,
+top-left of the thumbnail), and the sidebar swatches carry the same letter. Letters
+follow the enabled order, so hiding B re-letters the rest immediately — the mapping is
+always what you see, never a stale index.
+
+The alphabet is defined once in `useFeedCards.ts` (`VARIANT_LABELS`) and mirrored in
+`EditorPanel.tsx` (`LETTERS`).
+
+### Drag to place
+
+Any test card can be dragged onto any other card in the desktop grid; it lands in that
+slot and everything else shifts down. The first drag switches **Placement** to a new
+third option, `Manual`; choosing `First` or `Random` again throws the arrangement away.
+
+- `FeedState.slots` — `Record<cardId, feedIndex>`, written by `moveCardTo`.
+- `useFeedCards` inserts manually-placed cards low index first, so each one lands where
+  it was dropped instead of being pushed along by the cards inserted after it.
+- Positions are saved with the task (`TaskRecord.slots`) and restored on reopen. Records
+  written before this defaulted to `{}`.
+
+A file drag (dropping a .png onto the test card to replace its image) and a card drag
+fire the same DOM events. They are told apart by `dataTransfer.types` containing
+`"Files"`, so the existing drop-to-upload path is untouched.
+
+Mobile and Watch render the same ordered array, so an arrangement made on Desktop shows
+up there too; the drag handles themselves are Desktop-only.
+
+### Verification
+
+`npm run test:e2e:columns` — asserts the rule against the measured content width on
+both the tester and a shared link, collapses and reopens the guide from the masthead
+(3 cards -> 4 -> 3, and the 168px moving between rail and grid), and re-checks the rule at
+six viewport widths. 18/18 passing.
+
+`npm run test:e2e:variants` — four variants uploaded in one go, badges asserted as
+`ABCD`, a variant hidden and the rest re-lettered to `ABC`, then a real mouse drag from
+slot 0 to slot 7 with the displaced card checked to still be present, and `First`
+restoring the original order. 11/11 passing.
+
+---
+
+## 5. Likes and comments on a thumbnail (added)
+
+**Why:** the previous two features made it possible to put four thumbnails in front of
+someone. They gave nobody a way to say which one they preferred. On the target the card's
+"3 dots" button is decorative; here it carries the two reactions that actually matter when
+someone is weighing your options.
+
+### The menu
+
+`CardMenu.tsx`, rendered in place of the inert kebab **on test cards only** — pool cards
+keep the target's original button, markup and all.
+
+- **Like** — a toggle, with the count beside it.
+- **Comment** — opens a composer (Enter posts, Shift+Enter newlines, 600 chars) and the
+  thread underneath. You can delete your own comments, not other people's.
+- Escape closes it, matching every other popover in the app.
+
+Cards with reactions show a `♥ n  💬 n` badge in the thumbnail's top-right
+(`.yt-feedback-badge`), so you can see where the feedback landed without opening
+four menus.
+
+### Where the reactions live
+
+Likes are stored as **viewer ids, not a count**, so a reviewer can take their own like
+back without being able to clear anyone else's. Each browser mints a random local id
+(`getViewerId`); it is not an identity and tells the server nothing about the person.
+
+| Test | Storage |
+|---|---|
+| Local only | `TaskRecord.feedback`, in IndexedDB with the rest of the test |
+| Shared | `<share>/feedback.json` on the server, pooled across everyone with the link |
+
+`useShareFeedback` is the bridge, and both sides call it — the tester at `/app` and the
+read-only shared page. Given a share id it pulls the pooled reactions down and pushes
+every local change up through `FeedState.feedbackSink` (the same injection idiom as
+`uploadHandler` / `dropHandler`). The server wins per card, since it holds everyone's;
+cards it has never heard of keep whatever is local. With no share id it does nothing and
+reactions stay entirely local.
+
+### API
+
+`GET /api/share/[id]/feedback` → `{ feedback }`, `no-store` — a reviewer's like should
+show up on the author's next look, not after a TTL.
+
+`POST /api/share/[id]/feedback` → `{ cardId, feedback }`, replaces one card's reactions.
+
+**Deliberately unauthenticated.** The capability URL *is* the permission; demanding a
+sign-in to say "I prefer B" would kill the one thing the feature is for. Standing in for
+an account: every field is re-derived server-side by `sanitize()` rather than trusted, and
+`FEEDBACK_LIMITS` caps cards per share, comments per card, comment and author length, and
+likes per card. Last write wins per card — two reviewers reacting to different thumbnails
+never contend, and two hitting the same one in the same instant is not worth a lock file.
+
+The author's revoke secret still gates changing the test itself; revoking removes the
+feedback with it.
+
+### Naming
+
+The shared page carries a **Your name** field next to Copy link, kept in `localStorage`,
+that signs the comments a reviewer leaves. The author's own notes are signed `You`. The
+name is supplied by the caller rather than re-read inside the hook, so an author who has
+previously reviewed someone else's link does not end up signing their own notes with their
+guest name.
+
+Saving a copy of a shared test keeps the thread — the notes travel with the thumbnail they
+are about.
+
+**Fidelity impact:** the test card's kebab is now a menu inside a positioned `span`, so it
+differs from the target's markup. Pool cards are untouched, which is the overwhelming
+majority of the feed.
+
+### Verification
+
+`npm run test:e2e:feedback` — the full round trip in two isolated browser contexts: the
+author likes and comments on variant A, reloads to prove it persisted, publishes, a
+stranger opens the link, sets their name, and likes and comments on variant B; the author
+reloads and sees the reviewer's note and count; the reviewer takes their like back and the
+author's own like is unaffected. Plus the API's rejection cases. 20/20 passing.
+
+---
+
+## Corrected against YouTube
+
+### Feed column count (changed)
+
+The target computes the desktop grid's auto column count as:
+
+```js
+function x(e){return e<=0?4:Math.max(1,Math.min(6,Math.floor((e+16)/316)))}
+```
+
+316 = a 300px minimum card + a 16px margin. YouTube's actual rich grid, read off a live
+desktop feed in Chrome, uses:
+
+```
+--ytd-rich-grid-item-min-width: 326.8px
+--ytd-rich-grid-item-margin:     16px
+```
+
+Measured: at 1249px of grid width YouTube rendered **3** cards per row; the target's
+formula returns 4 at that width. The target overshoots by one column across a wide band —
+notably 1564-1632px, where it shows 5 and YouTube shows 4.
+
+For a thumbnail tester that gap matters more than clone fidelity does: a card previewed
+five-across is narrower than it will ever be on YouTube, so the test flatters small text
+and tight crops. `autoColumns` in `useInfiniteScroll.ts` now divides by
+`326.8 + 16 = 342.8`, with both constants named and sourced in a comment.
+
+| grid width | target | ours / YouTube |
+|---|---|---|
+| 1000 | 3 | 2 |
+| 1249 | 4 | **3** (measured) |
+| 1400 | 4 | 4 |
+| 1564 | 5 | 4 |
+| 1632 | 5 | 4 |
+| 1700 | 5 | 5 |
+| 2000 | 6 | 5 |
+
+The manual `3`/`4`/`5` column options are unaffected; this only changes `Auto`.
+
+A pinned count overrides the window width *and* the guide rail, which from the feed alone
+looks identical to a layout bug — it was mistaken for one. Layout now labels the hint
+`pinned — ignores width` and spells out underneath that resizing and collapsing the guide
+will not change it, with Auto named as the way back.
+
+### The guide rail counts
+
+The left rail is 240px expanded and 72px collapsed, and `.yt-feed` is `flex: 1`, so the
+rail comes straight off the grid. At a 1526px viewport that is the difference between
+**3 cards and 4** — one whole column — which matches YouTube exactly.
+
+Two things were wrong here and are now fixed:
+
+- **The masthead menu button was decorative.** On the target it does nothing, so the
+  shared page had no way to see the feed without the guide, and the tester only collapsed
+  it as a side effect of opening the editor. It now toggles the rail, as on YouTube.
+  `guideDefault` is what the surface asks for and `guideOpen` is the viewer's own choice,
+  which wins until the surface default changes under it. Neither is saved with the task —
+  it is a way of looking at the feed, not part of the test.
+- **The mount measurement disagreed with the resize measurement.** `ResizeObserver`
+  reports the content box, but the initial read used `el.clientWidth`, which includes the
+  grid's 24px side padding — 48px, enough to show one column too many until the first
+  resize corrected it. Both now measure the content box.
+
+**Fidelity impact:** a diff against the target at a width in one of the divergent bands
+will report a different card count in the grid. That is intentional.
+
+---
+
 ## Removed from the clone
 
 ### Author credit in the brand (removed)

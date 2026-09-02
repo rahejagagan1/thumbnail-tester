@@ -35,7 +35,10 @@
     "check": "npm run lint && npm run typecheck && npm run build",
     "test:e2e": "node scripts/e2e-tasks.mjs",
     "test:e2e:share": "node scripts/e2e-share.mjs",
-    "test:e2e:all": "node scripts/e2e-tasks.mjs && node scripts/e2e-share.mjs"
+    "test:e2e:variants": "node scripts/e2e-variants.mjs",
+    "test:e2e:feedback": "node scripts/e2e-feedback.mjs",
+    "test:e2e:columns": "node scripts/e2e-columns.mjs",
+    "test:e2e:all": "node scripts/e2e-tasks.mjs && node scripts/e2e-share.mjs && node scripts/e2e-variants.mjs && node scripts/e2e-feedback.mjs && node scripts/e2e-columns.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

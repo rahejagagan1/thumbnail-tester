@@ -54,8 +54,22 @@ export function useInfiniteScroll<T>(
   return { visible: items.slice(0, count), sentinelRef, hasMore: count < total };
 }
 
+/**
+ * YouTube's own rich-grid metrics, read off a live desktop feed:
+ *
+ *   --ytd-rich-grid-item-min-width: 326.8px
+ *   --ytd-rich-grid-item-margin:     16px
+ *
+ * The target site assumes a 300px minimum instead, which overshoots by one
+ * column across a wide band of widths — a feed showing five cards where YouTube
+ * shows four is the wrong test, so we follow YouTube here rather than the clone.
+ */
+const YT_ITEM_MIN_WIDTH = 326.8;
+const YT_ITEM_MARGIN = 16;
+
 /** Desktop grid auto-column count from container width. */
 export function autoColumns(width: number): number {
   if (width <= 0) return 4;
-  return Math.max(1, Math.min(6, Math.floor((width + 16) / 316)));
+  const perColumn = YT_ITEM_MIN_WIDTH + YT_ITEM_MARGIN;
+  return Math.max(1, Math.min(6, Math.floor((width + YT_ITEM_MARGIN) / perColumn)));
 }

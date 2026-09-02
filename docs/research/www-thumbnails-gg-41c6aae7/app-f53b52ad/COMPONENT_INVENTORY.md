@@ -31,7 +31,7 @@ Page assembly lives in `src/app/page.tsx`.
 ### DesktopSurface (`.yt-body`)
 - Composes `Masthead`, `MiniGuide`, `ChipBar` and the grid.
 - **Grid:** `--yt-cols` from a `ResizeObserver`; blur/grayscale as one CSS `filter`; infinite scroll with a 1px sentinel.
-- **Responsive:** 1–6 columns via `clamp(1, 6, floor((w + 16) / 316))`.
+- **Responsive:** 1–6 columns. The target uses `clamp(1, 6, floor((w + 16) / 316))`; ours divides by 342.8 to match YouTube's own grid metrics — see `EXTENSIONS.md`.
 
 ### MiniGuide (`Guide.tsx`)
 - **Two variants in one component.** Collapsed → `.yt-mini-guide` (72px, 4 items). Expanded → `.yt-guide` (240px, five sections separated by `.yt-guide-divider`: Home/Shorts · Subscriptions (7 channels + Show more) · You (7 links + Show more) · Explore (Music/Movies/Live) · YouTube Music/Kids · Report history/Settings).

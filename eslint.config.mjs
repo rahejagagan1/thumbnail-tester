@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Detached agent worktrees hold their own copy of src/. They are scratch
+    // space, not project source, and linting them fails `npm run check` on code
+    // this repo does not ship.
+    ".claude/**",
   ]),
 ]);
 

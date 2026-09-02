@@ -465,6 +465,8 @@ interface ToolbarProps {
   taskId?: string | null;
   /** Flushes pending edits so a share matches what is on screen. */
   onBeforeShare?: () => Promise<void>;
+  /** Fires when a link is created, refreshed or revoked. */
+  onShareChanged?: () => void;
 }
 
 /** Editable test name plus the autosave indicator, shown next to the wordmark. */
@@ -474,12 +476,14 @@ function TaskChip({
   onRename,
   taskId,
   onBeforeShare,
+  onShareChanged,
 }: {
   taskName: string | null;
   saveState: SaveState;
   onRename?: (name: string) => void;
   taskId: string | null;
   onBeforeShare?: () => Promise<void>;
+  onShareChanged?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(taskName ?? "");
@@ -569,7 +573,12 @@ function TaskChip({
       >
         {label}
       </span>
-      <SharePopover taskId={taskId} beforeShare={onBeforeShare} align="left" />
+      <SharePopover
+        taskId={taskId}
+        beforeShare={onBeforeShare}
+        align="left"
+        onChanged={onShareChanged}
+      />
     </span>
   );
 }
@@ -583,6 +592,7 @@ export function Toolbar({
   onRename,
   taskId = null,
   onBeforeShare,
+  onShareChanged,
 }: ToolbarProps) {
   const feed = useFeed();
   const isDark = feed.theme === "dark";
@@ -599,6 +609,7 @@ export function Toolbar({
           onRename={onRename}
           taskId={taskId}
           onBeforeShare={onBeforeShare}
+          onShareChanged={onShareChanged}
         />
       </span>
       <span className="tbar-grow" />

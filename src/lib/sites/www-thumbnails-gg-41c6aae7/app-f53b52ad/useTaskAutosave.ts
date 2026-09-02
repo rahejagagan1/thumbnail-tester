@@ -27,6 +27,8 @@ function snapshot(): FeedSnapshot {
     titleMode: s.titleMode,
     titles: s.titles,
     placement: s.placement,
+    slots: s.slots,
+    feedback: s.feedback,
     theme: s.theme,
     viewMode: s.viewMode,
     columns: s.columns,

@@ -24,6 +24,16 @@ interface DesktopSurfaceProps {
   resetKey: string;
 }
 
+/** Width available to the cards themselves, with the grid's own padding taken off. */
+function contentWidth(el: HTMLElement): number {
+  const cs = getComputedStyle(el);
+  return (
+    el.clientWidth -
+    (parseFloat(cs.paddingLeft) || 0) -
+    (parseFloat(cs.paddingRight) || 0)
+  );
+}
+
 /** The desktop YouTube-home surface: masthead, guide rail, chips, and the infinite feed grid. */
 export function DesktopSurface({
   cards,
@@ -40,11 +50,23 @@ export function DesktopSurface({
   const setInspect = useFeed((s) => s.setInspect);
   const uploadHandler = useFeed((s) => s.uploadHandler);
   const dropHandler = useFeed((s) => s.dropHandler);
+  const moveCardTo = useFeed((s) => s.moveCardTo);
+  const setGuideDefault = useFeed((s) => s.setGuideDefault);
+  const guideOverride = useFeed((s) => s.guideOpen);
   const [autoCols, setAutoCols] = useState(4);
+  // Which test card is in flight, and the slot it would land in.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
   const { visible, sentinelRef } = useInfiniteScroll(cards, {
     rootRef: scrollRootRef,
     resetKey,
   });
+
+  // The surface states what it wants; the viewer's menu-button choice wins.
+  useEffect(() => {
+    setGuideDefault(Boolean(guideExpanded));
+  }, [guideExpanded, setGuideDefault]);
+  const railExpanded = guideOverride ?? Boolean(guideExpanded);
 
   useEffect(() => {
     const el = gridRef.current;
@@ -53,9 +75,22 @@ export function DesktopSurface({
       setAutoCols(autoColumns(entries[0]?.contentRect.width ?? 0));
     });
     ro.observe(el);
-    setAutoCols(autoColumns(el.clientWidth));
+    // Match the observer, which reports the content box. `clientWidth`
+    // includes the grid's 24px side padding — enough to show one column too
+    // many until the first resize corrects it.
+    setAutoCols(autoColumns(contentWidth(el)));
     return () => ro.disconnect();
   }, []);
+
+  // A file drag (dropping a .png onto the test card) and a card drag share the
+  // same events, so they are told apart by what the drag is carrying.
+  const isFileDrag = (e: React.DragEvent) =>
+    Array.from(e.dataTransfer.types).includes("Files");
+
+  const endDrag = () => {
+    setDraggingId(null);
+    setOverIndex(null);
+  };
 
   const filters: string[] = [];
   if (blur > 0) filters.push(`blur(${blur}px)`);
@@ -65,7 +100,7 @@ export function DesktopSurface({
     <>
       <Masthead />
       <div className="yt-body">
-        <MiniGuide expanded={guideExpanded} />
+        <MiniGuide expanded={railExpanded} />
         <div className="yt-feed">
           <ChipBar />
           <div
@@ -79,7 +114,7 @@ export function DesktopSurface({
               } as React.CSSProperties
             }
           >
-            {visible.map((vm) => (
+            {visible.map((vm, index) => (
               <VideoCard
                 vm={vm}
                 highlight={vm.isTest && highlight}
@@ -87,15 +122,46 @@ export function DesktopSurface({
                 onClick={() =>
                   vm.isPlaceholder ? uploadHandler?.() : setInspect(vm)
                 }
-                onDragOver={vm.isTest ? (e) => e.preventDefault() : undefined}
-                onDrop={
+                draggable={vm.isTest}
+                dragging={draggingId === vm.id}
+                dropTarget={draggingId !== null && overIndex === index}
+                onDragStart={
                   vm.isTest
                     ? (e) => {
-                        e.preventDefault();
-                        dropHandler?.(Array.from(e.dataTransfer.files));
+                        e.dataTransfer.effectAllowed = "move";
+                        // Firefox ignores a drag that carries no payload.
+                        e.dataTransfer.setData("text/plain", vm.id);
+                        setDraggingId(vm.id);
                       }
                     : undefined
                 }
+                onDragEnd={vm.isTest ? endDrag : undefined}
+                onDragOver={(e) => {
+                  if (isFileDrag(e)) {
+                    // Leave the existing drop-a-thumbnail path alone.
+                    if (vm.isTest) e.preventDefault();
+                    return;
+                  }
+                  if (!draggingId) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setOverIndex(index);
+                }}
+                onDragLeave={() =>
+                  setOverIndex((i) => (i === index ? null : i))
+                }
+                onDrop={(e) => {
+                  if (isFileDrag(e)) {
+                    if (!vm.isTest) return;
+                    e.preventDefault();
+                    dropHandler?.(Array.from(e.dataTransfer.files));
+                    return;
+                  }
+                  if (!draggingId) return;
+                  e.preventDefault();
+                  moveCardTo(draggingId, index);
+                  endDrag();
+                }}
                 key={vm.id}
               />
             ))}

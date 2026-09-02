@@ -22,7 +22,11 @@ export type ImageFit = "cover" | "contain";
 export type ViewMode = "desktop" | "mobile" | "watch";
 export type Theme = "dark" | "light";
 export type Columns = "auto" | 3 | 4 | 5;
-export type Placement = "first" | "random";
+/**
+ * Where the test cards sit in the feed. `manual` is ours, not the target's: it
+ * means the user has dragged at least one card and their positions win.
+ */
+export type Placement = "first" | "random" | "manual";
 export type TestMode = "single" | "multiple";
 
 /** The user's card under test — everything the editor panel writes to. */
@@ -48,6 +52,26 @@ export interface ThumbnailVariant {
   enabled: boolean;
 }
 
+/** One note left on a thumbnail, by the author or by someone they shared with. */
+export interface CardComment {
+  id: string;
+  text: string;
+  at: number;
+  /** Display name. "You" for the author's own notes. */
+  author: string;
+}
+
+/**
+ * Reactions on one card.
+ *
+ * Likes are stored as viewer ids rather than a count so a reviewer can take
+ * their own like back without being able to clear anyone else's.
+ */
+export interface CardFeedback {
+  likes: string[];
+  comments: CardComment[];
+}
+
 export interface TitleVariant {
   id: string;
   text: string;
@@ -71,6 +95,8 @@ export interface CardViewModel {
   isTest: boolean;
   /** True while the test card still shows the "Drop your thumbnail" art. */
   isPlaceholder?: boolean;
+  /** A, B, C… shown on the card when several variants are in the feed at once. */
+  label?: string;
 }
 
 /** Where the surrounding (non-test) cards in the feed come from. */
@@ -175,6 +201,25 @@ export interface FeedState {
   titleMode: TestMode;
   titles: TitleVariant[];
   inspect: CardViewModel | null;
+  /**
+   * Feed index each test card has been dragged to, keyed by card id. Only read
+   * when `placement` is `manual`.
+   */
+  slots: Record<string, number>;
+  /** Likes and comments per card id. */
+  feedback: Record<string, CardFeedback>;
+  /**
+   * Guide rail state. `guideDefault` is what the surface asks for; `guideOpen`
+   * is the viewer's own choice from the masthead menu button, and wins until
+   * the surface's default changes under it. Not part of a saved task — it is a
+   * way of looking at the feed, not part of the test.
+   */
+  guideDefault: boolean;
+  guideOpen: boolean | null;
+  /** Who the current session counts as when liking. */
+  viewerId: string;
+  /** Name attached to comments this session leaves. */
+  viewerName: string;
   uploadHandler: (() => void) | null;
   dropHandler: ((files: File[]) => void) | null;
 
@@ -198,6 +243,26 @@ export interface FeedState {
   removeTitle: (id: string) => void;
   setColumns: (c: Columns) => void;
   setPlacement: (p: Placement) => void;
+  /** Drops a test card at `index` in the feed and switches to manual placement. */
+  moveCardTo: (cardId: string, index: number) => void;
+  setGuideDefault: (expanded: boolean) => void;
+  toggleGuide: () => void;
+  setViewer: (id: string, name: string) => void;
+  toggleLike: (cardId: string) => void;
+  addComment: (cardId: string, text: string) => void;
+  removeComment: (cardId: string, commentId: string) => void;
+  /**
+   * Called after any reaction, so a shared page can forward it to the server.
+   * Same injection idiom as `uploadHandler` / `dropHandler`.
+   */
+  feedbackSink:
+    | ((cardId: string, next: CardFeedback) => void)
+    | null;
+  setFeedbackSink: (
+    fn: ((cardId: string, next: CardFeedback) => void) | null,
+  ) => void;
+  /** Forgets every dragged position and returns to automatic placement. */
+  clearSlots: () => void;
   reshuffle: () => void;
   setBlur: (n: number) => void;
   setGrayscale: (b: boolean) => void;

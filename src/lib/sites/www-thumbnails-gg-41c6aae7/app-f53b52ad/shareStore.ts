@@ -13,6 +13,7 @@ import {
 import path from "node:path";
 
 import type { ShareAsset, SharedTask } from "@/types/share";
+import type { CardFeedback } from "@/types/thumbnails-app";
 
 /**
  * Server-side storage for shared tests.
@@ -25,6 +26,7 @@ import type { ShareAsset, SharedTask } from "@/types/share";
  *   <root>/<shareId>/manifest.json   public — served as-is to viewers
  *   <root>/<shareId>/owner.json      private — sha256 of the revoke secret
  *   <root>/<shareId>/assets/<id>     raw image bytes
+ *   <root>/<shareId>/feedback.json   public — likes and comments from viewers
  *
  * The driver is deliberately the only thing that touches the filesystem: to run
  * this on a serverless host (where the disk is ephemeral and per-invocation),
@@ -240,6 +242,98 @@ export async function deleteShare(
   if (auth !== "ok") return auth;
   await rm(dirFor(id), { recursive: true, force: true });
   return "ok";
+}
+
+/* ------------------------------------------------------------------ */
+/* feedback                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Reactions left by whoever opened the link.
+ *
+ * Deliberately unauthenticated: the capability URL *is* the permission, and
+ * demanding a sign-in to say "I like B better" would kill the one thing the
+ * feature is for. The caps below are what stands in for an account.
+ */
+export const FEEDBACK_LIMITS = {
+  maxCards: 40,
+  maxCommentsPerCard: 60,
+  maxCommentChars: 600,
+  maxAuthorChars: 40,
+  maxViewerIdChars: 64,
+  maxLikesPerCard: 500,
+} as const;
+
+export type ShareFeedback = Record<string, CardFeedback>;
+
+const feedbackPath = (id: string) => path.join(ROOT, id, "feedback.json");
+
+export async function readFeedback(id: string): Promise<ShareFeedback> {
+  if (!isShareId(id)) return {};
+  try {
+    return JSON.parse(await readFile(feedbackPath(id), "utf8")) as ShareFeedback;
+  } catch {
+    // Absent until someone reacts; an unreadable file is treated the same way
+    // rather than failing the page that renders around it.
+    return {};
+  }
+}
+
+/** Trims one card's reactions to the caps above, dropping the oldest comments. */
+function clampCard(card: CardFeedback): CardFeedback {
+  const seen = new Set<string>();
+  const likes: string[] = [];
+  for (const v of card.likes) {
+    const id = String(v).slice(0, FEEDBACK_LIMITS.maxViewerIdChars);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    likes.push(id);
+    if (likes.length >= FEEDBACK_LIMITS.maxLikesPerCard) break;
+  }
+  const comments = card.comments
+    .slice(-FEEDBACK_LIMITS.maxCommentsPerCard)
+    .map((c) => ({
+      id: String(c.id).slice(0, 64),
+      text: String(c.text).slice(0, FEEDBACK_LIMITS.maxCommentChars),
+      at: Number.isFinite(c.at) ? c.at : Date.now(),
+      author: String(c.author).slice(0, FEEDBACK_LIMITS.maxAuthorChars),
+    }));
+  return { likes, comments };
+}
+
+/**
+ * Replaces one card's reactions.
+ *
+ * Last write wins per card, which is the right granularity here: two reviewers
+ * reacting to different thumbnails never contend, and two reacting to the same
+ * one within the same instant is not worth a lock file.
+ */
+export async function putCardFeedback(
+  id: string,
+  cardId: string,
+  card: CardFeedback,
+): Promise<ShareFeedback | "not-found"> {
+  if (!isShareId(id)) return "not-found";
+  try {
+    await stat(path.join(ROOT, id, "manifest.json"));
+  } catch {
+    return "not-found";
+  }
+
+  const key = String(cardId).slice(0, 128);
+  if (!key) return "not-found";
+
+  const all = await readFeedback(id);
+  const next: ShareFeedback = { ...all, [key]: clampCard(card) };
+
+  // Drop empty entries so a like taken back does not leave a husk behind.
+  for (const [k, v] of Object.entries(next)) {
+    if (v.likes.length === 0 && v.comments.length === 0) delete next[k];
+  }
+  if (Object.keys(next).length > FEEDBACK_LIMITS.maxCards) return "not-found";
+
+  await writeFile(feedbackPath(id), JSON.stringify(next), "utf8");
+  return next;
 }
 
 /* ------------------------------------------------------------------ */

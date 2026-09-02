@@ -57,6 +57,9 @@ export function useVideoPool(): PoolVideo[] {
  * view must lay a test out identically — a shared link that arranged the feed
  * differently from what the author saw would defeat the point.
  */
+/** Badge letters for multi-variant tests; more than this and letters stop helping. */
+const VARIANT_LABELS = "ABCDEFGH".split("");
+
 export function useFeedCards(
   pool: PoolVideo[],
   flash: FlashState = INITIAL_FLASH,
@@ -143,14 +146,19 @@ export function useFeedCards(
                 ...shared,
               },
             ]
-          : feed.thumbnails
-              .filter((t) => t.enabled)
-              .map((t) => ({
+          : (() => {
+              const active = feed.thumbnails.filter((t) => t.enabled);
+              // With several variants in one feed the cards are otherwise
+              // indistinguishable — the whole point is telling them apart.
+              const labelled = active.length > 1;
+              return active.map((t, i) => ({
                 id: `__test__${t.id}`,
                 thumb: t.src,
                 title: titleFor(t.id),
+                label: labelled ? VARIANT_LABELS[i] : undefined,
                 ...shared,
               }));
+            })();
     } else {
       mine = [
         {
@@ -166,6 +174,15 @@ export function useFeedCards(
     const out = [...shuffled];
     if (flashActive) {
       out.splice(Math.max(0, Math.min(flash.index, out.length)), 0, ...mine);
+    } else if (feed.placement === "manual") {
+      // Insert low indices first so each card lands where it was dropped
+      // rather than being pushed along by the ones inserted after it.
+      const placed = mine
+        .map((card, i) => ({ card, slot: feed.slots[card.id] ?? i }))
+        .sort((a, b) => a.slot - b.slot);
+      for (const { card, slot } of placed) {
+        out.splice(Math.max(0, Math.min(slot, out.length)), 0, card);
+      }
     } else if (feed.placement === "first") {
       out.unshift(...mine);
     } else {
@@ -179,6 +196,7 @@ export function useFeedCards(
     activePool,
     feed.seed,
     feed.placement,
+    feed.slots,
     testCard,
     feed.thumbMode,
     feed.thumbnails,

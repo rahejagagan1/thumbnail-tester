@@ -2,6 +2,7 @@
 
 import type { CreateShareResponse, ShareInfo, SharedTask } from "@/types/share";
 import type { TaskRecord } from "@/types/tasks";
+import type { CardFeedback } from "@/types/thumbnails-app";
 
 import { getBlob, getTask, newId, putBlob, saveTask } from "./taskDb";
 
@@ -179,4 +180,76 @@ export async function importSharedTask(share: SharedTask): Promise<string> {
 
   await saveTask(record);
   return record.id;
+}
+
+/* ------------------------------------------------------------------ */
+/* feedback                                                            */
+/* ------------------------------------------------------------------ */
+
+const VIEWER_ID_KEY = "thumbnails.viewerId";
+const VIEWER_NAME_KEY = "thumbnails.viewerName";
+
+/**
+ * A stable id for this browser, so a reviewer can take their own like back
+ * without touching anyone else's.
+ *
+ * Deliberately not an identity: it is random, local, and tells the server
+ * nothing about who the person is. If storage is unavailable the id is
+ * per-page-load, which costs the ability to un-like after a reload — an
+ * acceptable trade for never blocking the page.
+ */
+export function getViewerId(): string {
+  const fresh = () =>
+    `v_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  if (typeof window === "undefined") return fresh();
+  try {
+    const held = window.localStorage.getItem(VIEWER_ID_KEY);
+    if (held) return held;
+    const made = fresh();
+    window.localStorage.setItem(VIEWER_ID_KEY, made);
+    return made;
+  } catch {
+    return fresh();
+  }
+}
+
+export function getViewerName(fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  try {
+    return window.localStorage.getItem(VIEWER_NAME_KEY) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function setViewerName(name: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VIEWER_NAME_KEY, name);
+  } catch {
+    /* nothing to do; the name just will not survive a reload */
+  }
+}
+
+export async function fetchShareFeedback(
+  shareId: string,
+): Promise<Record<string, CardFeedback>> {
+  const res = await fetch(`/api/share/${encodeURIComponent(shareId)}/feedback`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return {};
+  const body = (await res.json()) as { feedback?: Record<string, CardFeedback> };
+  return body.feedback ?? {};
+}
+
+export async function pushCardFeedback(
+  shareId: string,
+  cardId: string,
+  feedback: CardFeedback,
+): Promise<void> {
+  await fetch(`/api/share/${encodeURIComponent(shareId)}/feedback`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cardId, feedback }),
+  });
 }

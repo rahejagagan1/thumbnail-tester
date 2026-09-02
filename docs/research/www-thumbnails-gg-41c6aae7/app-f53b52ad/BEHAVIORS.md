@@ -46,8 +46,13 @@ A `ResizeObserver` on the `.yt-grid` element recomputes the column count on ever
 resize when Columns is `Auto`:
 
 ```
-cols = clamp(1, 6, floor((containerWidth + 16) / 316))
+cols = clamp(1, 6, floor((containerWidth + 16) / 316))   <- the target
+cols = clamp(1, 6, floor((containerWidth + 16) / 342.8)) <- ours, matching YouTube
 ```
+
+The target's 316 assumes a 300px minimum card. YouTube's real minimum is 326.8px, so the
+target renders one column too many across a wide band. We follow YouTube — see
+`EXTENSIONS.md`.
 
 Initial value 4; also computed once from `el.clientWidth` on mount. When Columns is
 `3`/`4`/`5` the literal value is used and the observer result is ignored. The count is

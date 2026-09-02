@@ -83,8 +83,9 @@ The tool shell itself is desktop-oriented and does not restructure at tablet/mob
 the **mocked feed**, which is the point of the product:
 
 - `yt-grid` columns come from a `ResizeObserver` on the grid element:
-  `cols = clamp(1, 6, floor((width + 16) / 316))` when Columns is `Auto`; otherwise the
-  literal 3/4/5.
+  `cols = clamp(1, 6, floor((width + 16) / 316))` on the target when Columns is `Auto`;
+  ours divides by 342.8 to match YouTube (see `EXTENSIONS.md`). Otherwise the literal
+  3/4/5.
 - `ios-frame` scales down at short viewports: `≤960px → scale(.9)`, `≤860px → scale(.8)`,
   `≤760px → scale(.7)` (height media queries).
 - `inspect-body` collapses from `1.25fr 1fr` to a single column at `max-width: 820px`.

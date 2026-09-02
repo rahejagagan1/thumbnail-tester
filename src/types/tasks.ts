@@ -1,5 +1,6 @@
 import type { ShareInfo } from "./share";
 import type {
+  CardFeedback,
   Columns,
   FeedSource,
   ImageFit,
@@ -55,6 +56,10 @@ export interface TaskRecord {
   titles: TitleVariant[];
 
   placement: Placement;
+  /** Feed index each test card was dragged to; only meaningful when placement is manual. */
+  slots: Record<string, number>;
+  /** Likes and comments per card id, the author's own plus anything pulled back from a share. */
+  feedback: Record<string, CardFeedback>;
   theme: Theme;
   viewMode: ViewMode;
   columns: Columns;

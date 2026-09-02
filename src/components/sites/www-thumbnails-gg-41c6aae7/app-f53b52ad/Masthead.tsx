@@ -8,13 +8,29 @@ import {
   IconSearch,
   YouTubeLogo,
 } from "@/components/sites/www-thumbnails-gg-41c6aae7/shared/icons";
+import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 
-/** The sticky top masthead, ported 1:1 from the target's bundle. */
+/**
+ * The sticky top masthead, ported 1:1 from the target's bundle.
+ *
+ * One departure: the menu button works. On the target it is decorative, but the
+ * guide costs the feed a whole column at common widths, so being able to see
+ * the feed both ways is part of testing a thumbnail properly.
+ */
 export function Masthead() {
+  const expanded = useFeed((s) => s.guideOpen ?? s.guideDefault);
+  const toggleGuide = useFeed((s) => s.toggleGuide);
+
   return (
     <header className="yt-masthead">
       <div className="yt-masthead-start">
-        <button className="yt-icon-btn" aria-label="Menu" tabIndex={-1}>
+        <button
+          className="yt-icon-btn"
+          aria-label={expanded ? "Collapse the guide" : "Expand the guide"}
+          aria-expanded={expanded}
+          title={expanded ? "Collapse the guide" : "Expand the guide"}
+          onClick={toggleGuide}
+        >
           <IconMenu />
         </button>
         <span

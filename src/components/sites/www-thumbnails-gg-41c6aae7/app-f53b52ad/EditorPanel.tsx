@@ -412,6 +412,9 @@ function Dropzone({
   );
 }
 
+/** Same alphabet the feed badges use, so the sidebar and the feed agree. */
+const LETTERS = "ABCDEFGH".split("");
+
 function ThumbnailGrid() {
   const thumbnails = useFeed((s) => s.thumbnails);
   const toggleThumbnail = useFeed((s) => s.toggleThumbnail);
@@ -420,7 +423,8 @@ function ThumbnailGrid() {
   if (thumbnails.length === 0) {
     return (
       <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>
-        No thumbnails yet. Add a few to compare them side by side in the feed.
+        No thumbnails yet. Add 3–4 and each one gets its own card in the feed,
+        badged A, B, C… so you can tell them apart.
       </p>
     );
   }
@@ -461,6 +465,28 @@ function ThumbnailGrid() {
               draggable={false}
               style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
             />
+            {/* The letter matches the badge this variant carries in the feed. */}
+            {enabledCount > 1 && t.enabled && (
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: 6,
+                  left: 6,
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  borderRadius: 5,
+                  background: "rgba(0,0,0,0.75)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  lineHeight: "18px",
+                  textAlign: "center",
+                }}
+              >
+                {LETTERS[thumbnails.filter((x) => x.enabled).indexOf(t)] ?? "?"}
+              </span>
+            )}
             <span
               style={{
                 position: "absolute",
@@ -990,16 +1016,30 @@ export function EditorPanel() {
       </Section>
 
       <Section title="Placement">
-        <Field label="Position">
+        <Field label="Position" hint={feed.placement === "manual" ? "dragged" : undefined}>
           <Seg
             value={feed.placement}
             onChange={feed.setPlacement}
             options={[
               { value: "first", label: "First" },
               { value: "random", label: "Random" },
+              { value: "manual", label: "Manual" },
             ]}
           />
         </Field>
+        {feed.placement === "manual" && (
+          <p
+            style={{
+              margin: "8px 0 10px",
+              fontSize: 11.5,
+              lineHeight: 1.5,
+              color: "var(--text-faint)",
+            }}
+          >
+            Drag your card onto any card in the feed to move it there. Pick
+            First or Random to drop the arrangement.
+          </p>
+        )}
         <button
           onClick={() => feed.reshuffle()}
           className="focus-ring"
@@ -1062,7 +1102,14 @@ export function EditorPanel() {
           />
         </Field>
         {feed.viewMode === "desktop" && (
-          <Field label="Columns" hint={feed.columns === "auto" ? "auto (responsive)" : `${feed.columns}`}>
+          <Field
+            label="Columns"
+            hint={
+              feed.columns === "auto"
+                ? "auto (responsive)"
+                : "pinned — ignores width"
+            }
+          >
             <Seg
               value={String(feed.columns) as "auto" | "3" | "4" | "5"}
               onChange={(v) => feed.setColumns(v === "auto" ? "auto" : (Number(v) as Columns))}
@@ -1073,6 +1120,21 @@ export function EditorPanel() {
                 { value: "5", label: "5" },
               ]}
             />
+            {feed.columns !== "auto" && (
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  fontSize: 11,
+                  lineHeight: 1.5,
+                  color: "var(--text-faint)",
+                }}
+              >
+                The feed is locked to {feed.columns} columns, so resizing the
+                window or collapsing the guide will not change it. Pick{" "}
+                <strong style={{ fontWeight: 600 }}>Auto</strong> to follow
+                YouTube&rsquo;s own sizing.
+              </p>
+            )}
           </Field>
         )}
         {feed.viewMode === "watch" && (
