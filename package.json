@@ -39,7 +39,8 @@
     "test:e2e:feedback": "node scripts/e2e-feedback.mjs",
     "test:e2e:columns": "node scripts/e2e-columns.mjs",
     "test:e2e:inspect": "node scripts/e2e-inspect-edit.mjs",
-    "test:e2e:all": "node scripts/e2e-tasks.mjs && node scripts/e2e-share.mjs && node scripts/e2e-variants.mjs && node scripts/e2e-feedback.mjs && node scripts/e2e-columns.mjs && node scripts/e2e-inspect-edit.mjs"
+    "test:e2e:status": "node scripts/e2e-status.mjs",
+    "test:e2e:all": "node scripts/e2e-tasks.mjs && node scripts/e2e-share.mjs && node scripts/e2e-variants.mjs && node scripts/e2e-feedback.mjs && node scripts/e2e-columns.mjs && node scripts/e2e-inspect-edit.mjs && node scripts/e2e-status.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

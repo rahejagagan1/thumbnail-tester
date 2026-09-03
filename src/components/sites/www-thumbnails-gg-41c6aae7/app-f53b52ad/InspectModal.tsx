@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
 import { toPng } from "html-to-image";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
-import { titleVariantForCard } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useFeedCards";
+import {
+  thumbnailForCard,
+  titleVariantForCard,
+} from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useFeedCards";
 import { genThumb, monogramColor } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import {
   IconKebab,
@@ -100,6 +103,9 @@ export function InspectModal({ editable = true }: { editable?: boolean } = {}) {
   const testCard = useFeed((s) => s.testCard);
   const titleMode = useFeed((s) => s.titleMode);
   const titles = useFeed((s) => s.titles);
+  const thumbMode = useFeed((s) => s.thumbMode);
+  const thumbnails = useFeed((s) => s.thumbnails);
+  const setThumbnailTitle = useFeed((s) => s.setThumbnailTitle);
   const seed = useFeed((s) => s.seed);
   const updateTestCard = useFeed((s) => s.updateTestCard);
   const updateTitle = useFeed((s) => s.updateTitle);
@@ -120,10 +126,14 @@ export function InspectModal({ editable = true }: { editable?: boolean } = {}) {
   const titleVariant = inspect?.isTest
     ? titleVariantForCard(inspect.id, titleMode, titles, seed)
     : null;
+  // The image's own title, when this card was drawn from one.
+  const thumbVariant = inspect?.isTest
+    ? thumbnailForCard(inspect.id, thumbMode, thumbnails)
+    : null;
   const card = inspect?.isTest
     ? {
         ...inspect,
-        title: titleVariant?.text ?? testCard.title,
+        title: thumbVariant?.title ?? titleVariant?.text ?? testCard.title,
         channel: testCard.channelName,
       }
     : inspect;
@@ -191,10 +201,13 @@ export function InspectModal({ editable = true }: { editable?: boolean } = {}) {
 
   const canEdit = editable && card.isTest;
 
-  // In multiple-titles mode the card shows one variant from the list, so the
-  // edit belongs to that variant; otherwise it is the test card's own title.
+  // Retitling writes back to whatever this card drew its title from: the
+  // image's own title first, then a variant from the list, then the shared
+  // title. In multiple-thumbnail mode that means an edit here retitles the one
+  // card you opened, not every card in the test.
   const writeTitle = (text: string) => {
-    if (titleVariant) updateTitle(titleVariant.id, text);
+    if (thumbVariant) setThumbnailTitle(thumbVariant.id, text);
+    else if (titleVariant) updateTitle(titleVariant.id, text);
     else updateTestCard({ title: text });
   };
 

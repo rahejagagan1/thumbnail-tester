@@ -82,7 +82,7 @@ export const useFeed = create<FeedState>((set) => ({
             thumbMode,
             thumbnails: [
               ...s.thumbnails,
-              { id: uid(), src: s.testCard.imageSrc, enabled: true },
+              { id: uid(), src: s.testCard.imageSrc, enabled: true, title: null },
             ],
           }
         : { thumbMode },
@@ -92,7 +92,7 @@ export const useFeed = create<FeedState>((set) => ({
     set((s) => ({
       thumbnails: [
         ...s.thumbnails,
-        ...srcs.map((src) => ({ id: uid(), src, enabled: true })),
+        ...srcs.map((src) => ({ id: uid(), src, enabled: true, title: null })),
       ],
     })),
   toggleThumbnail: (id) =>
@@ -103,6 +103,14 @@ export const useFeed = create<FeedState>((set) => ({
     })),
   removeThumbnail: (id) =>
     set((s) => ({ thumbnails: s.thumbnails.filter((t) => t.id !== id) })),
+  // An empty box means "no title of my own", not "an empty title": clearing the
+  // field has to hand the card back to the shared title rather than draw blank.
+  setThumbnailTitle: (id, title) =>
+    set((s) => ({
+      thumbnails: s.thumbnails.map((t) =>
+        t.id === id ? { ...t, title: title && title.trim() ? title : null } : t,
+      ),
+    })),
 
   setTitleMode: (titleMode) => set({ titleMode }),
   addTitle: (text) =>

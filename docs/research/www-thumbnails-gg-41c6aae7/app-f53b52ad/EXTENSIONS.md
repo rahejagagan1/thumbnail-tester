@@ -352,6 +352,69 @@ selects those segments by class with a comment saying why.
 
 ---
 
+## 7. Review stages on a saved test (added)
+
+The library listed tests with no sense of where any of them had got to. Each one now
+carries a stage, shown as a coloured chip on its card and changed from a menu behind it.
+
+| stage | chip | means |
+|---|---|---|
+| `draft` | First draft | Yours, not shown to anyone yet |
+| `review` | For approval | Sent out, waiting on a verdict |
+| `revision` | Changes needed | Came back with notes to work through |
+| `final` | Final approval | Last look before it ships |
+| `done` | Completed | Signed off and published |
+
+Stored as a key, not a label, so the wording can change without rewriting saved tasks.
+`revision` sits third because that is where a rejected review lands; from there a test
+goes back out for approval rather than onwards.
+
+### Where it is written
+
+`TaskRecord.status`, alongside `share` — both are things that happen *to* a test rather
+than edits of it. `setTaskStatus` writes it straight to IndexedDB and, like `setTaskShare`,
+deliberately leaves `updatedAt` alone: the library is ordered by last edit, and a test
+jumping to the front because someone ticked it off would lose that ordering.
+
+`normalize` defaults a missing status to `draft`, so tests saved before this existed read
+as first drafts. `toTaskRecord` carries the existing status through, which is what stops
+an autosave from un-approving a test the moment the author opens it again. A duplicate
+keeps the stage; unlike `share`, a stage is not something a copy has to earn back.
+
+### Two places, one chip
+
+The chip is on the library card and in the tester's toolbar, beside the test name and the
+save state — the two places you look at a test. `TaskStatusChip.tsx` holds the stage
+table, the chip and the picker; the library passes the summary it already has, and the
+toolbar reads the one field it needs through `useTaskStatus`, straight from the database,
+because the feed store knows nothing about review stages. Either one writes to the same
+record, so they cannot disagree.
+
+The toolbar chip appears only once a test has been saved: before the first autosave there
+is no record to write a stage to.
+
+### The filter
+
+The stage tabs above the grid count what is at each stage and hide the ones holding
+nothing. With fewer than two stages in play the row does not render — a single tab reading
+"All 3" is noise.
+
+### Not on the shared link
+
+A share is a snapshot: a viewer opening a link published at "For approval" would still see
+that after the test was completed, which is worse than showing nothing. The stage stays in
+the author's library.
+
+### Verification
+
+`npm run test:e2e:status` — a new test starts as a first draft, walks all four remaining
+stages, survives a reload, survives being edited afterwards, does not reorder the library
+when restaged, filters correctly, and is carried by a duplicate. Then the toolbar: it
+shows the stage the library shows, restaging there reaches the library, and an unsaved
+test has no chip at all. 20/20 passing.
+
+---
+
 ## Corrected against YouTube
 
 ### Feed column count (changed)

@@ -10,6 +10,7 @@ import {
   type FlashState,
   type PoolVideo,
   type TestMode,
+  type ThumbnailVariant,
   type TitleVariant,
 } from "@/types/thumbnails-app";
 
@@ -68,6 +69,22 @@ export const TEST_CARD_ID = "__test__";
 /** The key a card's title was drawn with: its thumbnail variant, or the card itself. */
 function titleKey(cardId: string): string {
   return cardId === TEST_CARD_ID ? TEST_CARD_ID : cardId.slice(TEST_CARD_ID.length);
+}
+
+/**
+ * The thumbnail variant a test card was drawn from, or null when the card is
+ * the single-thumbnail one.
+ *
+ * Exported for the same reason as `titleVariantForCard`: an editor writing a
+ * title back has to know which image owns the card it is editing.
+ */
+export function thumbnailForCard(
+  cardId: string,
+  thumbMode: TestMode,
+  thumbnails: ThumbnailVariant[],
+): ThumbnailVariant | null {
+  if (thumbMode !== "multiple" || cardId === TEST_CARD_ID) return null;
+  return thumbnails.find((t) => t.id === titleKey(cardId)) ?? null;
 }
 
 /**
@@ -153,7 +170,10 @@ export function useFeedCards(
       isTest: true as const,
     };
 
+    // A per-image title wins over both the title list and the shared title:
+    // typing one is an explicit statement that this image reads differently.
     const titleFor = (cardId: string) =>
+      thumbnailForCard(cardId, feed.thumbMode, feed.thumbnails)?.title ??
       titleVariantForCard(cardId, feed.titleMode, feed.titles, feed.seed)?.text ??
       testCard.title;
 

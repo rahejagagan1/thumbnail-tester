@@ -420,6 +420,9 @@ function ThumbnailGrid() {
   const thumbnails = useFeed((s) => s.thumbnails);
   const toggleThumbnail = useFeed((s) => s.toggleThumbnail);
   const removeThumbnail = useFeed((s) => s.removeThumbnail);
+  const setThumbnailTitle = useFeed((s) => s.setThumbnailTitle);
+  // Shown as the placeholder, so an empty box says what it will fall back to.
+  const sharedTitle = useFeed((s) => s.testCard.title);
 
   if (thumbnails.length === 0) {
     return (
@@ -430,7 +433,7 @@ function ThumbnailGrid() {
     );
   }
 
-  const enabledCount = thumbnails.filter((t) => t.enabled).length;
+  const enabled = thumbnails.filter((t) => t.enabled);
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -439,97 +442,125 @@ function ThumbnailGrid() {
           Thumbnails
         </span>
         <span style={{ fontSize: 11.5, color: "var(--text-faint)" }}>
-          {enabledCount}/{thumbnails.length} in feed
+          {enabled.length}/{thumbnails.length} in feed
         </span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {thumbnails.map((t) => (
           <div
             key={t.id}
-            onClick={() => toggleThumbnail(t.id)}
-            title={t.enabled ? "Click to hide from feed" : "Click to show in feed"}
             style={{
-              position: "relative",
-              aspectRatio: "16 / 9",
-              borderRadius: 8,
-              overflow: "hidden",
-              cursor: "pointer",
-              border: `2px solid ${t.enabled ? "#fff" : "transparent"}`,
-              opacity: t.enabled ? 1 : 0.4,
-              transition: "opacity var(--dur-fast), border-color var(--dur-fast)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              opacity: t.enabled ? 1 : 0.45,
+              transition: "opacity var(--dur-fast)",
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={t.src}
-              alt=""
-              draggable={false}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-            {/* The letter matches the badge this variant carries in the feed. */}
-            {enabledCount > 1 && t.enabled && (
+            <div
+              onClick={() => toggleThumbnail(t.id)}
+              title={t.enabled ? "Click to hide from feed" : "Click to show in feed"}
+              style={{
+                position: "relative",
+                flex: "0 0 104px",
+                aspectRatio: "16 / 9",
+                borderRadius: 8,
+                overflow: "hidden",
+                cursor: "pointer",
+                border: `2px solid ${t.enabled ? "#fff" : "transparent"}`,
+                transition: "border-color var(--dur-fast)",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={t.src}
+                alt=""
+                draggable={false}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+              {/* The letter matches the badge this variant carries in the feed. */}
+              {enabled.length > 1 && t.enabled && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 4,
+                    left: 4,
+                    minWidth: 16,
+                    height: 16,
+                    padding: "0 4px",
+                    borderRadius: 4,
+                    background: "rgba(0,0,0,0.75)",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    lineHeight: "16px",
+                    textAlign: "center",
+                  }}
+                >
+                  {LETTERS[enabled.indexOf(t)] ?? "?"}
+                </span>
+              )}
               <span
                 style={{
                   position: "absolute",
-                  bottom: 6,
-                  left: 6,
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  borderRadius: 5,
-                  background: "rgba(0,0,0,0.75)",
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  lineHeight: "18px",
-                  textAlign: "center",
+                  top: 4,
+                  left: 4,
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  background: t.enabled ? "#fff" : "rgba(0,0,0,0.5)",
+                  border: "1px solid rgba(255,255,255,0.6)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                {LETTERS[thumbnails.filter((x) => x.enabled).indexOf(t)] ?? "?"}
+                {t.enabled && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M5 12.5l4 4 10-10"
+                      stroke="#08090b"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
               </span>
-            )}
-            <span
+            </div>
+            <textarea
+              value={t.title ?? ""}
+              onChange={(e) => setThumbnailTitle(t.id, e.target.value)}
+              rows={2}
+              placeholder={sharedTitle}
+              aria-label="Title for this thumbnail"
+              className="focus-ring"
               style={{
-                position: "absolute",
-                top: 6,
-                left: 6,
-                width: 18,
-                height: 18,
-                borderRadius: 4,
-                background: t.enabled ? "#fff" : "rgba(0,0,0,0.5)",
-                border: "1px solid rgba(255,255,255,0.6)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                flex: 1,
+                minWidth: 0,
+                padding: "6px 9px",
+                borderRadius: 8,
+                background: "var(--bg-sunken)",
+                border: `1px solid ${t.title ? "var(--border-default)" : "var(--border-subtle, var(--border-default))"}`,
+                color: t.title ? "var(--text-primary)" : "var(--text-muted)",
+                fontSize: 12.5,
+                lineHeight: 1.35,
+                fontFamily: "inherit",
+                resize: "vertical",
+                outline: "none",
               }}
-            >
-              {t.enabled && (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M5 12.5l4 4 10-10"
-                    stroke="#08090b"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </span>
+            />
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                removeThumbnail(t.id);
-              }}
+              onClick={() => removeThumbnail(t.id)}
               aria-label="Remove thumbnail"
               style={{
-                position: "absolute",
-                top: 6,
-                right: 6,
-                width: 18,
-                height: 18,
+                flex: "0 0 auto",
+                width: 20,
+                height: 20,
+                marginTop: 2,
                 borderRadius: 999,
-                background: "rgba(0,0,0,0.6)",
-                border: "none",
+                background: "var(--bg-sunken)",
+                border: "1px solid var(--border-default)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -538,12 +569,21 @@ function ThumbnailGrid() {
               }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                <path d="M6 6l12 12M18 6L6 18" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
               </svg>
             </button>
           </div>
         ))}
       </div>
+      <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--text-faint)", lineHeight: 1.5 }}>
+        Each box is that image’s own title. Leave one empty and it falls back to
+        the shared title in Details.
+      </p>
     </div>
   );
 }

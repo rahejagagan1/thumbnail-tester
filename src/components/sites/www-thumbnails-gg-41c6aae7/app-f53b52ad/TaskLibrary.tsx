@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { SharePopover } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/SharePopover";
+import {
+  STATUSES,
+  TaskStatusChip,
+} from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/TaskStatusChip";
 import { revokeShareForTask } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/shareClient";
 import { PLACEHOLDER_THUMB } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/format";
 import {
@@ -13,7 +17,7 @@ import {
   listTasks,
   renameTask,
 } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/taskDb";
-import type { TaskSummary } from "@/types/tasks";
+import type { TaskStatus, TaskSummary } from "@/types/tasks";
 
 function relativeTime(ts: number): string {
   const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
@@ -261,6 +265,8 @@ function TaskCard({
         </span>
       </div>
 
+      <TaskStatusChip taskId={task.id} status={task.status} onChanged={onChanged} />
+
       <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
         {badges.map((b) => (
           <Pill key={b}>{b}</Pill>
@@ -390,9 +396,78 @@ function TaskCard({
   );
 }
 
+/** Stage tabs above the grid. A stage with nothing in it is not offered. */
+function StatusFilter({
+  tasks,
+  value,
+  onChange,
+}: {
+  tasks: TaskSummary[];
+  value: TaskStatus | "all";
+  onChange: (v: TaskStatus | "all") => void;
+}) {
+  const counts = new Map<TaskStatus, number>();
+  for (const t of tasks) counts.set(t.status, (counts.get(t.status) ?? 0) + 1);
+
+  const options: { value: TaskStatus | "all"; label: string; color: string | null }[] = [
+    { value: "all", label: `All ${tasks.length}`, color: null },
+    ...STATUSES.filter((s) => counts.has(s.value)).map((s) => ({
+      value: s.value as TaskStatus | "all",
+      label: `${s.label} ${counts.get(s.value)}`,
+      color: s.color,
+    })),
+  ];
+
+  // One stage holding everything is not a filter, it is noise.
+  if (options.length < 3) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 18 }}>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            onClick={() => onChange(o.value)}
+            className="focus-ring"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              height: 28,
+              padding: "0 11px",
+              borderRadius: 999,
+              border: `1px solid ${active ? "var(--border-strong, rgba(255,255,255,0.28))" : "var(--border-subtle)"}`,
+              background: active ? "var(--glass-1-bg)" : "transparent",
+              color: active ? "var(--text-primary)" : "var(--text-muted)",
+              fontSize: 12,
+              fontWeight: active ? 600 : 500,
+              fontFamily: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            {o.color && (
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: o.color,
+                }}
+              />
+            )}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function TaskLibrary() {
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [filter, setFilter] = useState<TaskStatus | "all">("all");
   const mounted = useRef(true);
 
   const refresh = useCallback(() => {
@@ -415,6 +490,9 @@ export function TaskLibrary() {
       mounted.current = false;
     };
   }, [refresh]);
+
+  const shown =
+    filter === "all" ? (tasks ?? []) : (tasks ?? []).filter((t) => t.status === filter);
 
   return (
     <main
@@ -533,17 +611,26 @@ export function TaskLibrary() {
             </Link>
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(268px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {tasks.map((t) => (
-              <TaskCard key={t.id} task={t} onChanged={refresh} />
-            ))}
-          </div>
+          <>
+            <StatusFilter tasks={tasks} value={filter} onChange={setFilter} />
+            {shown.length === 0 ? (
+              <p style={{ fontSize: 13, color: "var(--text-faint)" }}>
+                Nothing at this stage yet.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(268px, 1fr))",
+                  gap: 16,
+                }}
+              >
+                {shown.map((t) => (
+                  <TaskCard key={t.id} task={t} onChanged={refresh} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>

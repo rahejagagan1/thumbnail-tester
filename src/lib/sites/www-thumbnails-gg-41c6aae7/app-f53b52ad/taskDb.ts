@@ -1,7 +1,7 @@
 "use client";
 
 import type { ShareInfo } from "@/types/share";
-import type { TaskRecord, TaskSummary } from "@/types/tasks";
+import type { TaskRecord, TaskStatus, TaskSummary } from "@/types/tasks";
 
 import { DEFAULT_CARD_CHANNEL } from "./store";
 
@@ -138,6 +138,9 @@ function normalize(t: TaskRecord): TaskRecord {
     // `share` post-dates the first release, so records written before it exist
     // without the field.
     share: t.share ?? null,
+    // Same for `status`: everything saved before review stages existed is a
+    // first draft.
+    status: t.status ?? "draft",
     card:
       t.card.channelName === RETIRED_DEFAULT_CHANNEL
         ? { ...t.card, channelName: DEFAULT_CARD_CHANNEL }
@@ -162,6 +165,7 @@ export async function listTasks(): Promise<TaskSummary[]> {
       updatedAt: t.updatedAt,
       coverBlobId: t.coverBlobId,
       shareId: t.share?.id ?? null,
+      status: t.status,
       title: t.card.title,
       channelName: t.card.channelName,
       viewMode: t.viewMode,
@@ -221,6 +225,22 @@ export async function renameTask(id: string, name: string): Promise<void> {
   const task = await getTask(id);
   if (!task) return;
   await saveTask({ ...task, name, updatedAt: Date.now() });
+}
+
+/**
+ * Moves a test to another review stage.
+ *
+ * Like `setTaskShare`, this leaves `updatedAt` alone: the library is ordered by
+ * when a test was last *edited*, and having it jump to the front because
+ * someone ticked it off would lose that ordering.
+ */
+export async function setTaskStatus(
+  id: string,
+  status: TaskStatus,
+): Promise<void> {
+  const task = await getTask(id);
+  if (!task) return;
+  await saveTask({ ...task, status });
 }
 
 /** Records (or clears) the share link a test has been published under. */

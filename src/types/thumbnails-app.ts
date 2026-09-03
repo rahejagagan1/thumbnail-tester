@@ -55,6 +55,12 @@ export interface ThumbnailVariant {
   id: string;
   src: string;
   enabled: boolean;
+  /**
+   * A title belonging to this image alone. `null` means "use the shared title"
+   * — the one in Details, or a variant drawn from the title list — so a test
+   * only diverges once someone actually types a per-image title.
+   */
+  title: string | null;
 }
 
 /** One note left on a thumbnail, by the author or by someone they shared with. */
@@ -247,6 +253,8 @@ export interface FeedState {
   setThumbMode: (m: TestMode) => void;
   addThumbnails: (srcs: string[]) => void;
   toggleThumbnail: (id: string) => void;
+  /** Sets this image's own title; blank hands it back to the shared title. */
+  setThumbnailTitle: (id: string, title: string | null) => void;
   removeThumbnail: (id: string) => void;
   setTitleMode: (m: TestMode) => void;
   addTitle: (text: string) => void;

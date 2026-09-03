@@ -5,6 +5,10 @@ import type { CSSProperties, ReactNode, RefObject } from "react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
 import { SharePopover } from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/SharePopover";
+import {
+  TaskStatusChip,
+  useTaskStatus,
+} from "@/components/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/TaskStatusChip";
 import { useFeed } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/store";
 import type { SaveState } from "@/lib/sites/www-thumbnails-gg-41c6aae7/app-f53b52ad/useTaskAutosave";
 import type { ViewMode } from "@/types/thumbnails-app";
@@ -487,6 +491,7 @@ function TaskChip({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(taskName ?? "");
+  const [status, setStatus] = useTaskStatus(taskId);
 
   const label =
     saveState === "saving"
@@ -579,6 +584,18 @@ function TaskChip({
         align="left"
         onChanged={onShareChanged}
       />
+      {/* Nothing to write a stage to until the first autosave has made a
+          record, so the chip appears with the saved test rather than sitting
+          there dead on a blank one. */}
+      {taskId && (
+        <TaskStatusChip
+          taskId={taskId}
+          status={status}
+          onChanged={setStatus}
+          align="left"
+          compact
+        />
+      )}
     </span>
   );
 }

@@ -77,7 +77,13 @@ export async function toTaskRecord(
     if (isBlobUrl(t.src)) {
       const prior = existing?.thumbnails.find((p) => p.id === t.id);
       const blobId = prior?.blobId ?? (await storeObjectUrl(t.src));
-      if (blobId) thumbnails.push({ id: t.id, blobId, enabled: t.enabled });
+      if (blobId)
+        thumbnails.push({
+          id: t.id,
+          blobId,
+          enabled: t.enabled,
+          title: t.title ?? null,
+        });
     }
   }
 
@@ -91,6 +97,9 @@ export async function toTaskRecord(
     coverBlobId,
     // Publishing is tracked separately from editing; carry it through untouched.
     share: existing?.share ?? null,
+    // So is the review stage: editing a test does not un-approve it. A new test
+    // starts as a first draft.
+    status: existing?.status ?? "draft",
     card: {
       imageBlobId,
       imageFit: snap.testCard.imageFit,
@@ -160,7 +169,9 @@ export async function fromTaskRecord(
   const thumbnails = [];
   for (const t of task.thumbnails) {
     const src = await resolve(t.blobId);
-    if (src) thumbnails.push({ id: t.id, src, enabled: t.enabled });
+    // Tests saved before per-image titles carry none: they inherit the shared one.
+    if (src)
+      thumbnails.push({ id: t.id, src, enabled: t.enabled, title: t.title ?? null });
   }
 
   const competitors: Competitor[] = task.competitors.map((c) => ({

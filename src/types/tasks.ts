@@ -13,6 +13,20 @@ import type {
 } from "@/types/thumbnails-app";
 
 /**
+ * Where a test has got to in a review round.
+ *
+ * Ordered: a test moves down the list, except `revision`, which sends it back
+ * for another pass. Stored as a key rather than a label so the wording can be
+ * changed without rewriting every saved task.
+ */
+export type TaskStatus =
+  | "draft"
+  | "review"
+  | "revision"
+  | "final"
+  | "done";
+
+/**
  * A saved test.
  *
  * Images are NOT inlined here — they live in a separate IndexedDB store as real
@@ -33,6 +47,9 @@ export interface TaskRecord {
    */
   share: ShareInfo | null;
 
+  /** Review stage. Records written before this existed read as `draft`. */
+  status: TaskStatus;
+
   card: {
     imageBlobId: string | null;
     imageFit: ImageFit;
@@ -51,7 +68,13 @@ export interface TaskRecord {
 
   thumbMode: TestMode;
   /** Multiple-mode thumbnail variants. */
-  thumbnails: { id: string; blobId: string; enabled: boolean }[];
+  thumbnails: {
+    id: string;
+    blobId: string;
+    enabled: boolean;
+    /** This image's own title. Absent on tests saved before per-image titles. */
+    title?: string | null;
+  }[];
   titleMode: TestMode;
   titles: TitleVariant[];
 
@@ -92,6 +115,7 @@ export interface TaskSummary {
   coverBlobId: string | null;
   /** Present when this test currently has a live share link. */
   shareId: string | null;
+  status: TaskStatus;
   title: string;
   channelName: string;
   viewMode: ViewMode;

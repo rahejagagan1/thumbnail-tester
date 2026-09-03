@@ -116,8 +116,10 @@ async function makePng(page, label, color) {
 
   await p.screenshot({ path: path.join(OUT, "variants-dragged.png") });
 
-  // Going back to First clears the arrangement.
-  await p.locator("button", { hasText: "First" }).first().click();
+  // Going back to First clears the arrangement. Matched exactly and scoped to
+  // the segmented control: a loose "First" also catches the toolbar's "First
+  // draft" review chip, which sits earlier in the document.
+  await p.locator(".seg-btn").filter({ hasText: /^First$/ }).first().click();
   await p.waitForTimeout(900);
   check("First restores the front", (await idxOf()) === 0);
 
